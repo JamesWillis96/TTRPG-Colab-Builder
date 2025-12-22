@@ -1,6 +1,3 @@
-# TTRPG-Colab-Builder
-Collaborative worldbuilding and session management for West Marches TTRPG campaigns
-
 # TTRPG Colab Builder
 
 A collaborative worldbuilding and session management web application for West Marches style TTRPG campaigns, with primary support for Daggerheart.
@@ -57,3 +54,61 @@ This project aims to create a web-based platform where players can:
 ```bash
 git clone https://github.com/JamesWillis96/TTRPG-Colab-Builder.git
 cd TTRPG-Colab-Builder
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
+
+4. Run the development server:
+```bash
+npm run dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser!
+
+## 📚 Learning Resources
+
+New to web development? Check out these guides in the `/docs` folder:
+- `00-SETUP-GUIDE.md` - Getting your development environment ready
+- `01-JAVASCRIPT-BASICS.md` - JavaScript fundamentals
+- `02-REACT-INTRO.md` - Introduction to React
+- `03-NEXTJS-BASICS.md` - Understanding Next.js
+- `04-DATABASE-PRIMER.md` - Working with databases
+
+## 📁 Project Structure
+
+```
+TTRPG-Colab-Builder/
+├── app/                    # Next.js app directory (pages & routes)
+├── components/             # Reusable React components
+├── lib/                    # Utility functions and configurations
+├── public/                 # Static assets (images, icons)
+├── docs/                   # Learning guides and documentation
+├── styles/                 # Global styles
+└── types/                  # TypeScript type definitions
+```
+
+## 🗺️ Project Roadmap
+
+Check the [Issues](https://github.com/JamesWillis96/TTRPG-Colab-Builder/issues) tab for the detailed development roadmap and current tasks.
+
+## 🤝 Contributing
+
+This is currently a personal learning project, but suggestions and ideas are welcome!
+
+## 📄 License
+
+MIT License - feel free to use this for your own campaigns!
+
+---
+
+**Campaign System**: Daggerheart  
+**Play Style**: West Marches  
+**Status**: In Development 🚧
