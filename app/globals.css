@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #FAF0E6;
+  --foreground: #2F1B14;
 }
 
 body {
@@ -22,4 +22,126 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Markdown Content Styles */
+.markdown-content {
+  line-height: 1.7;
+  color: #2F1B14;
+}
+
+.markdown-content h1 {
+  font-size: 2rem;
+  margin-top: 1. 5rem;
+  margin-bottom: 1rem;
+  color: #D4AF37;
+  border-bottom: 2px solid #D2B48C;
+  padding-bottom: 0.5rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #D4AF37;
+}
+
+.markdown-content h3 {
+  font-size: 1.25rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #8B4513;
+}
+
+.markdown-content p {
+  margin-bottom: 1rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 1rem;
+  padding-left: 2rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content a {
+  color: #D4AF37;
+  text-decoration:  underline;
+}
+
+.markdown-content a:hover {
+  color: #8B4513;
+}
+
+.markdown-content code {
+  background:  #FFFACD;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family:  monospace;
+  font-size:  0.875em;
+  color: #2F1B14;
+  border: 1px solid #D2B48C;
+}
+
+.markdown-content pre {
+  background: #FFFACD;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+  border: 1px solid #D2B48C;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  color: #2F1B14;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #D4AF37;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 1rem;
+  color: #8B4513;
+  font-style: italic;
+  background: #F5F5DC;
+  padding: 1rem;
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid #D2B48C;
+  padding: 0.5rem;
+  text-align:  left;
+}
+
+.markdown-content th {
+  background: #F5F5DC;
+  font-weight: bold;
+  color: #2F1B14;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 1rem 0;
+  border: 1px solid #D2B48C;
+}
+
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid #D2B48C;
+  margin: 2rem 0;
 }

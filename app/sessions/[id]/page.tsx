@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
+import { styles, theme } from '../../../lib/theme'
 
 type Session = {
   id: string
@@ -151,62 +152,42 @@ export default function SessionDetailPage() {
   }
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading... </div>
+    return <div style={{ padding: '2rem', textAlign: 'center', color: theme.colors.text.primary }}>Loading... </div>
   }
 
   if (!session) {
     return (
       <div style={{ padding:  '2rem', textAlign: 'center' }}>
-        <p>Session not found</p>
-        <a href="/sessions" style={{ color: '#4f8' }}>← Back to Sessions</a>
+        <p style={{ color: theme.colors.text.primary }}>Session not found</p>
+        <a href="/sessions" style={{ color: theme.colors.primary }}>← Back to Sessions</a>
       </div>
     )
   }
 
   return (
-    <main style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <a href="/sessions" style={{ color:  '#4f8', textDecoration: 'none' }}>
+    <main style={styles.container}>
+      <div style={styles.section}>
+        <a href="/sessions" style={{ color: theme.colors.primary, textDecoration: 'none' }}>
           ← Back to Sessions
         </a>
       </div>
 
-      <div style={{
-        background: '#111',
-        border: '1px solid #333',
-        borderRadius: '8px',
-        padding: '2rem'
-      }}>
+      <div style={styles.card}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-            <h1 style={{ fontSize: '2rem' }}>{session.title}</h1>
+        <div style={styles.section}>
+          <div style={{...styles.flexBetween, marginBottom: '1rem'}}>
+            <h1 style={styles.heading1}>{session.title}</h1>
             {isGM && (
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   onClick={() => router.push(`/sessions/${sessionId}/edit`)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#4f8',
-                    color:  '#000',
-                    border: 'none',
-                    borderRadius:  '4px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}
+                  style={styles.button.primary}
                 >
                   Edit
                 </button>
                 <button
                   onClick={handleDeleteSession}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: '#ff000020',
-                    color: '#ff6666',
-                    border:  '1px solid #ff0000',
-                    borderRadius:  '4px',
-                    cursor: 'pointer'
-                  }}
+                  style={styles.button.danger}
                 >
                   Delete
                 </button>
@@ -215,26 +196,26 @@ export default function SessionDetailPage() {
           </div>
 
           {session.description && (
-            <p style={{ color: '#aaa', marginBottom: '1.5rem' }}>{session.description}</p>
+            <p style={{ color: theme.colors.text.secondary, marginBottom: '1.5rem' }}>{session.description}</p>
           )}
 
           <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             <div>
-              <span style={{ color: '#666' }}>📅 </span>
-              <span style={{ color: '#fff' }}>
+              <span style={{ color: theme.colors.text.muted }}>📅 </span>
+              <span style={{ color: theme.colors.text.primary }}>
                 {new Date(session.date_time).toLocaleDateString()}
               </span>
             </div>
             <div>
-              <span style={{ color: '#666' }}>👥 </span>
-              <span style={{ color: '#fff' }}>
+              <span style={{ color: theme.colors.text.muted }}>👥 </span>
+              <span style={{ color: theme.colors.text.primary }}>
                 {signups.length} / {session.max_players} players
               </span>
             </div>
             <div>
-              <span style={{ color: '#666' }}>📊 </span>
+              <span style={{ color: theme.colors.text.muted }}>📊 </span>
               <span style={{ 
-                color: session.status === 'open' ? '#4f8' :  '#888',
+                color: session.status === 'open' ? theme.colors.success : theme.colors.text.secondary,
                 textTransform: 'capitalize'
               }}>
                 {session.status}
@@ -244,19 +225,13 @@ export default function SessionDetailPage() {
 
           {isGM && (
             <div style={{ marginTop:  '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#666', fontSize: '0.875rem' }}>
+              <label style={styles.label}>
                 Change Status: 
               </label>
               <select
                 value={session.status}
                 onChange={(e) => handleStatusChange(e.target. value)}
-                style={{
-                  padding: '0.5rem',
-                  background: '#222',
-                  border: '1px solid #444',
-                  borderRadius: '4px',
-                  color: '#fff'
-                }}
+                style={styles.select}
               >
                 <option value="open">Open</option>
                 <option value="full">Full</option>
@@ -268,16 +243,16 @@ export default function SessionDetailPage() {
         </div>
 
         {/* Divider */}
-        <div style={{ height: '1px', background: '#333', margin: '2rem 0' }}></div>
+        <div style={{ height: '1px', background: theme.colors.border.primary, margin: '2rem 0' }}></div>
 
         {/* Players List */}
-        <div>
-          <h2 style={{ fontSize:  '1.5rem', marginBottom: '1rem' }}>
+        <div style={styles.section}>
+          <h2 style={styles.heading2}>
             Signed Up Players ({signups.length})
           </h2>
 
           {signups.length === 0 ? (
-            <p style={{ color: '#666', fontStyle: 'italic' }}>No players signed up yet. </p>
+            <p style={{ color: theme.colors.text.muted, fontStyle: 'italic' }}>No players signed up yet. </p>
           ) : (
             <div style={{ display: 'grid', gap: '0.75rem' }}>
               {signups.map((signup, index) => (
@@ -288,14 +263,14 @@ export default function SessionDetailPage() {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding:  '1rem',
-                    background: '#0a0a0a',
-                    border: '1px solid #222',
-                    borderRadius: '4px'
+                    background: theme.colors.background.tertiary,
+                    border: `1px solid ${theme.colors.border.secondary}`,
+                    borderRadius: theme.borderRadius
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <span style={{ 
-                      color: '#666', 
+                      color: theme.colors.text.muted, 
                       fontSize: '1. 25rem',
                       fontWeight: 'bold',
                       minWidth: '2rem'
@@ -303,10 +278,10 @@ export default function SessionDetailPage() {
                       {index + 1}. 
                     </span>
                     <div>
-                      <div style={{ fontWeight: 'bold', color: '#fff' }}>
+                      <div style={{ fontWeight: 'bold', color: theme.colors.text.primary }}>
                         {signup.profile?.username || 'Unknown User'}
                       </div>
-                      <div style={{ fontSize:  '0.875rem', color: '#666' }}>
+                      <div style={{ fontSize:  '0.875rem', color: theme.colors.text.secondary }}>
                         Signed up:  {new Date(signup.signed_up_at).toLocaleDateString()}
                       </div>
                     </div>
@@ -317,10 +292,10 @@ export default function SessionDetailPage() {
                       onClick={() => handleRemovePlayer(signup.id)}
                       style={{
                         padding: '0.25rem 0.75rem',
-                        background: '#ff000020',
-                        color: '#ff6666',
-                        border: '1px solid #ff000060',
-                        borderRadius: '4px',
+                        background: 'transparent',
+                        color: theme.colors.danger,
+                        border: `1px solid ${theme.colors.danger}`,
+                        borderRadius: theme.borderRadius,
                         cursor:  'pointer',
                         fontSize: '0.875rem'
                       }}

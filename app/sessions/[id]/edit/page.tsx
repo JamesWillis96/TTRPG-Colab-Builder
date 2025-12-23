@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { supabase } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
+import { theme, styles } from '../../../../lib/theme'
 
 export default function EditSessionPage() {
   const { user } = useAuth()
@@ -14,7 +15,10 @@ export default function EditSessionPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState('')
+  const [time, setTime] = useState('18:00')
   const [maxPlayers, setMaxPlayers] = useState(5)
+  const [gameSystem, setGameSystem] = useState('Dungeons & Dragons')
+  const [customGameSystem, setCustomGameSystem] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -41,9 +45,12 @@ export default function EditSessionPage() {
 
       setTitle(data.title)
       setDescription(data.description || '')
-      // Convert timestamp to date format (YYYY-MM-DD)
-      setDate(data.date_time.split('T')[0])
+      // Split timestamp into date and time
+      const dateTime = new Date(data.date_time)
+      setDate(dateTime.toISOString().split('T')[0])
+      setTime(dateTime.toTimeString().slice(0, 5))
       setMaxPlayers(data.max_players)
+      setGameSystem(data.game_system || 'Dungeons & Dragons')
     } catch (error: any) {
       console.error('Error loading session:', error.message)
       setError('Failed to load session')
@@ -57,14 +64,28 @@ export default function EditSessionPage() {
     setSaving(true)
     setError('')
 
+    // Validation
+    if (gameSystem === 'Other' && !customGameSystem.trim()) {
+      setError('Please enter a custom game system')
+      setSaving(false)
+      return
+    }
+
     try {
+      // Use custom game system if "Other" is selected
+      const finalGameSystem = gameSystem === 'Other' ? customGameSystem : gameSystem
+
+      // Combine date and time into a single datetime
+      const dateTime = `${date}T${time}:00`
+
       const { error: updateError } = await supabase
         .from('sessions')
         .update({
           title,
           description,
-          date_time: date,
-          max_players: maxPlayers
+          date_time: dateTime,
+          max_players: maxPlayers,
+          game_system: finalGameSystem
         })
         .eq('id', sessionId)
 
@@ -79,29 +100,23 @@ export default function EditSessionPage() {
   }
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>
+    return <div style={{ ...styles.container, textAlign: 'center', color: theme.colors.text.secondary }}>Loading...</div>
   }
 
   return (
-    <main style={{
-      maxWidth: '600px',
-      margin: '2rem auto',
-      padding: '2rem',
-      border: '1px solid #333',
-      borderRadius: '8px',
-      background: '#111'
-    }}>
+    <main style={styles.container}>
       <div style={{ marginBottom: '2rem' }}>
-        <a href={`/sessions/${sessionId}`} style={{ color: '#4f8', textDecoration: 'none' }}>
+        <a href={`/sessions/${sessionId}`} style={{ color: theme.colors.primary, textDecoration: 'none' }}>
           ← Back to Session
         </a>
       </div>
 
-      <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Edit Session</h1>
+      <h1 style={styles.heading1}>Edit Session</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {/* Title */}
+        <div>
+          <label style={styles.label}>
             Session Title *
           </label>
           <input
@@ -109,60 +124,87 @@ export default function EditSessionPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            style={{
-              width:  '100%',
-              padding:  '0.5rem',
-              background: '#222',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: '#fff'
-            }}
+            placeholder="e.g., The Dragon's Lair"
+            style={styles.input}
           />
         </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
+        {/* Description */}
+        <div>
+          <label style={styles.label}>
             Description
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              background: '#222',
-              border: '1px solid #444',
-              borderRadius:  '4px',
-              color:  '#fff',
-              fontFamily: 'inherit',
-              resize: 'vertical'
-            }}
+            placeholder="Describe what players can expect..."
+            rows={5}
+            style={styles.textarea}
           />
         </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
-            Date *
+        {/* Game System */}
+        <div>
+          <label style={styles.label}>
+            Game System *
           </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+          <select
+            value={gameSystem}
+            onChange={(e) => setGameSystem(e.target.value)}
+            style={styles.select}
             required
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              background: '#222',
-              border: '1px solid #444',
-              borderRadius:  '4px',
-              color:  '#fff'
-            }}
-          />
+          >
+            <option value="Dungeons & Dragons">Dungeons & Dragons</option>
+            <option value="Pathfinder">Pathfinder</option>
+            <option value="Call of Cthulhu">Call of Cthulhu</option>
+            <option value="Warhammer">Warhammer</option>
+            <option value="Shadowrun">Shadowrun</option>
+            <option value="Other">Other</option>
+          </select>
+          {gameSystem === 'Other' && (
+            <input
+              type="text"
+              placeholder="Enter custom game system"
+              value={customGameSystem}
+              onChange={(e) => setCustomGameSystem(e.target.value)}
+              style={{ ...styles.input, marginTop: '0.5rem' }}
+              required
+            />
+          )}
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
+        {/* Date and Time */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div>
+            <label style={styles.label}>
+              Date *
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+              style={styles.input}
+            />
+          </div>
+
+          <div>
+            <label style={styles.label}>
+              Time *
+            </label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              required
+              style={styles.input}
+            />
+          </div>
+        </div>
+
+        {/* Max Players */}
+        <div>
+          <label style={styles.label}>
             Max Players *
           </label>
           <input
@@ -172,14 +214,7 @@ export default function EditSessionPage() {
             required
             min={1}
             max={10}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              background: '#222',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: '#fff'
-            }}
+            style={styles.input}
           />
         </div>
 
@@ -187,49 +222,28 @@ export default function EditSessionPage() {
           <div style={{
             padding: '0.75rem',
             marginBottom:  '1rem',
-            background:  '#ff000020',
-            border: '1px solid #ff0000',
-            borderRadius: '4px',
-            color: '#ff6666'
+            background: theme.colors.background.error,
+            border: `1px solid ${theme.colors.danger}`,
+            borderRadius: theme.borderRadius,
+            color: theme.colors.danger
           }}>
             {error}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        {/* Submit */}
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
           <button
             type="submit"
             disabled={saving}
-            style={{
-              flex: 1,
-              padding: '0.75rem',
-              background: saving ? '#444' : '#4f8',
-              color: saving ? '#888' : '#000',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: saving ? 'not-allowed' : 'pointer'
-            }}
+            style={styles.button.primary}
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
 
           <a
             href={`/sessions/${sessionId}`}
-            style={{
-              flex:  1,
-              padding: '0.75rem',
-              background: '#333',
-              color:  '#fff',
-              border: '1px solid #555',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              textDecoration: 'none',
-              display: 'block'
-            }}
+            style={styles.button.secondary}
           >
             Cancel
           </a>

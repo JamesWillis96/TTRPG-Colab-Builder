@@ -1,15 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '../../contexts/AuthContext'
+import { styles, theme } from '../../lib/theme'
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { user, signIn } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+  if (user) {
+    router.push('/sessions')
+  }
+}, [user, router])
 
   const handleLogin = async (e: React. FormEvent) => {
     e.preventDefault()
@@ -38,15 +48,15 @@ export default function LoginPage() {
       maxWidth: '400px', 
       margin:  '4rem auto', 
       padding: '2rem',
-      border: '1px solid #333',
-      borderRadius: '8px',
-      background: '#111'
+      border: `1px solid ${theme.colors.border.primary}`,
+      borderRadius: theme.borderRadius,
+      background: theme.colors.background.secondary
     }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Log In</h1>
+      <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem', color: theme.colors.text.primary }}>Log In</h1>
       
       <form onSubmit={handleLogin}>
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display:  'block', marginBottom: '0.5rem', color: '#aaa' }}>
+          <label style={styles.label}>
             Email
           </label>
           <input
@@ -54,19 +64,12 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{
-              width:  '100%',
-              padding:  '0.5rem',
-              background: '#222',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: '#fff'
-            }}
+            style={styles.input}
           />
         </div>
 
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#aaa' }}>
+          <label style={styles.label}>
             Password
           </label>
           <input
@@ -74,14 +77,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target. value)}
             required
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              background: '#222',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: '#fff'
-            }}
+            style={styles.input}
           />
         </div>
 
@@ -89,10 +85,10 @@ export default function LoginPage() {
           <div style={{ 
             padding: '0.75rem', 
             marginBottom: '1rem',
-            background: '#ff000020',
-            border: '1px solid #ff0000',
-            borderRadius: '4px',
-            color: '#ff6666'
+            background: '#8B000020',
+            border: `1px solid ${theme.colors.danger}`,
+            borderRadius: theme.borderRadius,
+            color: theme.colors.danger
           }}>
             {error}
           </div>
@@ -104,10 +100,10 @@ export default function LoginPage() {
           style={{
             width: '100%',
             padding: '0.75rem',
-            background: loading ? '#444' : '#4f8',
-            color: loading ? '#888' : '#000',
+            background: loading ? theme.colors.background.tertiary : theme.colors.primary,
+            color: loading ? theme.colors.text.muted : '#2F1B14',
             border:  'none',
-            borderRadius: '4px',
+            borderRadius: theme.borderRadius,
             fontSize: '1rem',
             fontWeight: 'bold',
             cursor: loading ? 'not-allowed' : 'pointer'
@@ -117,9 +113,9 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p style={{ marginTop: '1.5rem', textAlign: 'center', color: '#888' }}>
+      <p style={{ marginTop: '1.5rem', textAlign: 'center', color: theme.colors.text.secondary }}>
         Don't have an account?{' '}
-        <a href="/signup" style={{ color: '#4f8' }}>Sign up</a>
+        <a href="/signup" style={{ color: theme.colors.primary }}>Sign up</a>
       </p>
     </main>
   )
