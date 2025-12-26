@@ -14,164 +14,165 @@ export default function CreateWikiPage() {
   
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [category, setCategory] = useState('general')
+  const [category, setCategory] = useState('player character')
   const [showPreview, setShowPreview] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'general']
+  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player']
 
   const getTemplate = (cat: string) => {
     const templates: Record<string, string> = {
       npc: `# [NPC Name]
 
-## Basic Information
-- **Race:** [Race]
-- **Class:** [Class/Profession]
-- **Alignment:** [Alignment]
-- **Background:** [Brief background story]
+---
+**Race:** [Race]  
+**Class/Profession:** [Class/Profession]  
+**Background:** [Background]  
+**Alignment:** [Alignment]
+---
 
-## Appearance
-[Physical description, clothing, notable features]
+## Who is this character? What is their role in the world?
 
-## Personality
-[Personality traits, motivations, quirks]
+## What do they look like? What stands out about their appearance?
 
-## Abilities & Skills
-- **Strengths:** [List key strengths]
-- **Weaknesses:** [List key weaknesses]
-- **Skills:** [Notable skills or abilities]
+## What motivates them? What are their goals, fears, or secrets?
 
-## Relationships
-- **Allies:** [Friends or allies]
-- **Enemies:** [Rivals or enemies]
-- **Affiliations:** [Organizations or groups]
+## Who are their friends, allies, or enemies?
 
-## Notable Quotes
-> "[Memorable quote]"
+## What is a memorable quote or saying from this character?
+
+## What is something unexpected about them?
 
 ## Additional Notes
-[Any other relevant information]`,
+[Add any other interesting details or story hooks.]
+`,
+      player: `# [Player Character Name]
+
+---
+**Race:** [Race]  
+**Class:** [Class]  
+**Background:** [Background]  
+**Alignment:** [Alignment]
+**Favorite Color:** [Color]
+---
+
+## What is your character's background and origin story?
+
+## What are their core beliefs, values, or driving motivations?
+
+## What do they look like? Any distinguishing features?
+
+## What is their greatest strength? What is their greatest flaw?
+
+## Who are their closest allies or rivals?
+
+## What is a secret your character keeps (from the party or the world)?
+
+## What is a goal your character wants to achieve?
+
+## What is a memorable moment from their adventures so far?
+
+## Additional Notes
+[Add any other personal details, quirks, or aspirations.]
+`,
       location: `# [Location Name]
 
-## Overview
-[Brief description of the location]
+---
+**Type:** [e.g., City, Forest, Dungeon, etc.]  
+**Region:** [Region or area]  
+**Notable NPCs:** [Key NPCs]  
+**Factions Present:** [Factions]
+---
 
-## Geography & Environment
-- **Type:** [e.g., City, Forest, Dungeon, etc.]
-- **Size:** [Dimensions or scale]
-- **Climate:** [Weather and environmental conditions]
-- **Notable Features:** [Landmarks, natural features]
+## What makes this place unique or important?
 
-## History
-[Historical background or significant events]
+## What is the environment like? (Climate, terrain, notable features)
 
-## Points of Interest
-- **[POI 1]:** [Description]
-- **[POI 2]:** [Description]
+## Who lives here or frequents this location?
 
-## Inhabitants
-- **Population:** [Number and types of inhabitants]
-- **Key NPCs:** [Important characters]
-- **Factions:** [Groups present]
+## What is the history or legend behind this place?
 
-## Economy & Resources
-[Trade, resources, or economic aspects]
+## What dangers or mysteries might visitors encounter?
 
-## Dangers & Encounters
-[Potential threats or adventure hooks]
+## What is a rumor or secret about this location?
 
 ## Additional Notes
-[Any other relevant information]`,
+[Add any other interesting facts, hooks, or connections.]
+`,
       lore: `# [Lore Topic]
 
-## Overview
-[Brief summary of the lore or story element]
+---
+**Origin:** [How did this lore begin?]  
+**Key Figures:** [People or creatures involved]  
+**Era:** [Time period]
+---
 
-## Background
-[Detailed history or origin story]
+## What is the essence of this lore or story element?
 
-## Key Events
-- **[Event 1]:** [Description and significance]
-- **[Event 2]:** [Description and significance]
+## How did it originate? Who or what is involved?
 
-## Involved Parties
-- **Characters:** [Key individuals]
-- **Organizations:** [Groups involved]
-- **Races/Creatures:** [Relevant beings]
+## What are the key events or turning points?
 
-## Impact
-[How this lore affects the world, characters, or plot]
+## How does this lore impact the world or its people?
 
-## Mysteries & Secrets
-[Unresolved questions or hidden truths]
+## What mysteries or unresolved questions surround it?
+
+## Why does this matter to the campaign or characters?
 
 ## Additional Notes
-[Any other relevant information]`,
+[Add any other context, theories, or implications.]
+`,
       item: `# [Item Name]
 
-## Basic Information
-- **Type:** [Weapon, Armor, Potion, Artifact, etc.]
-- **Rarity:** [Common, Uncommon, Rare, Legendary, etc.]
-- **Value:** [Gold piece equivalent or other value]
+---
+**Type:** [Weapon, Armor, Potion, Artifact, etc.]  
+**Rarity:** [Common, Uncommon, Rare, Legendary, etc.]  
+**Value:** [Gold piece equivalent or other value]
+---
 
-## Description
-[Physical appearance and general description]
+## What is this item and what does it look like?
 
-## Properties
-- **Effects:** [Magical or special abilities]
-- **Requirements:** [Who can use it, prerequisites]
-- **Limitations:** [Drawbacks or restrictions]
+## What is its origin or history?
 
-## History
-[Origin story or notable owners/users]
+## What powers, abilities, or properties does it have?
 
-## Usage
-[How to use the item, mechanics]
+## Who can use it, and are there any requirements or restrictions?
+
+## What is a story or rumor associated with this item?
+
+## What is a drawback, risk, or cost of using it?
 
 ## Additional Notes
-[Any other relevant information]`,
+[Add any other details, plot hooks, or secrets.]
+`,
       faction: `# [Faction Name]
 
-## Overview
-[Brief description of the faction]
+---
+**Leader:** [Name and title]  
+**Base of Operations:** [Location]  
+**Primary Goal:** [Goal or ideology]
+---
 
-## Leadership
-- **Leader:** [Name and title]
-- **Key Members:** [Important individuals]
-- **Structure:** [Hierarchy or organization]
+## What is the purpose or ideology of this group?
 
-## Goals & Ideology
-[Primary objectives and beliefs]
+## Who leads it, and how is it organized?
 
-## History
-[Background and significant events]
+## What is the group's history or origin?
 
-## Territory & Influence
-- **Bases:** [Locations controlled]
-- **Allies:** [Friendly factions]
-- **Enemies:** [Rival factions]
+## Who are its allies and enemies?
 
-## Resources & Power
-[Military, economic, magical strength]
+## What resources, power, or influence does it have?
 
-## Notable Activities
-[Common actions or operations]
+## What are its current goals or activities?
+
+## What is a secret or internal conflict within the faction?
 
 ## Additional Notes
-[Any other relevant information]`,
-      general: `# [Page Title]
-
-## Overview
-[Brief introduction or summary]
-
-## Details
-[Detailed information, broken into sections as needed]
-
-## Additional Notes
-[Any other relevant information]`
+[Add any other relevant information, rumors, or story hooks.]
+`
     }
-    return templates[cat] || templates.general
+    return templates[cat] || templates.player
   }
 
   const handleAddTemplate = () => {
