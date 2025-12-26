@@ -31,6 +31,8 @@ export default function MapEditorPage() {
   const [poiCategory, setPoiCategory] = useState('location')
   const [loading, setLoading] = useState(true)
   const [mapDimensions, setMapDimensions] = useState({ width: 1920, height: 1080 }) // Default dimensions
+  const [movingPoiId, setMovingPoiId] = useState<string | null>(null)
+  const [movingOffset, setMovingOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
 
   useEffect(() => {
     if (!authLoading && ! user) {
@@ -247,6 +249,38 @@ export default function MapEditorPage() {
     setPosition({ x: 0, y:  0 })
   }
 
+  const handleMapMouseMove = (e: React.MouseEvent) => {
+    if (!movingPoiId) return
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+    // Calculate position on the actual map (accounting for pan and zoom)
+    const mapX = (mouseX - position.x) / scale
+    const mapY = (mouseY - position.y) / scale
+    // Convert to ratio (0-1) of map dimensions
+    const ratioX = mapX / mapDimensions.width
+    const ratioY = mapY / mapDimensions.height
+    setMovingOffset({ x: ratioX, y: ratioY })
+  }
+
+  const handleMapMouseUp = async () => {
+    if (!movingPoiId) return
+    // Update POI in database and local state
+    const poi = pois.find(p => p.id === movingPoiId)
+    if (!poi) return
+    try {
+      const { error } = await supabase
+        .from('map_pois')
+        .update({ x: movingOffset.x, y: movingOffset.y })
+        .eq('id', movingPoiId)
+      if (!error) {
+        setPois(pois.map(p => p.id === movingPoiId ? { ...p, x: movingOffset.x, y: movingOffset.y } : p))
+      }
+    } catch {}
+    setMovingPoiId(null)
+  }
+
   if (authLoading || loading) {
     return (
       <div style={{
@@ -383,8 +417,8 @@ export default function MapEditorPage() {
         ref={containerRef}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        onMouseMove={e => { handleMouseMove(e); handleMapMouseMove(e); }}
+        onMouseUp={e => { handleMouseUp(); handleMapMouseUp(); }}
         onMouseLeave={handleMouseUp}
         onContextMenu={handleContextMenu}
         style={{
@@ -399,16 +433,20 @@ export default function MapEditorPage() {
         }}
       >
         {/* POI Markers */}
-        {pois. map(poi => (
-          <POIMarker 
-            key={poi.id} 
-            poi={poi} 
-            scale={scale} 
-            position={position} 
+        {pois.map(poi => (
+          <POIMarker
+            key={poi.id}
+            poi={poi}
+            scale={scale}
+            position={position}
             mapDimensions={mapDimensions}
-            onDelete={handleDeletePOI} 
+            onDelete={handleDeletePOI}
             router={router}
-            canDelete={poi.created_by === user?. id}
+            canDelete={poi.created_by === user?.id}
+            movingPoiId={movingPoiId}
+            setMovingPoiId={setMovingPoiId}
+            movingOffset={movingOffset}
+            setMovingOffset={setMovingOffset}
           />
         ))}
       </div>
@@ -502,7 +540,7 @@ export default function MapEditorPage() {
 }
 
 // Separate component for POI markers to manage individual hover states
-function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canDelete }: {
+function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canDelete, movingPoiId, setMovingPoiId, movingOffset, setMovingOffset }: {
   poi: POI
   scale: number
   position: { x: number, y: number }
@@ -510,30 +548,44 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
   onDelete: (poi: POI) => void
   router: any
   canDelete: boolean
+  movingPoiId: string | null
+  setMovingPoiId: (id: string | null) => void
+  movingOffset: { x: number, y: number }
+  setMovingOffset: (offset: {x: number, y: number}) => void
 }) {
   const [isHovered, setIsHovered] = useState(false)
-
   // Convert ratio (0-1) back to pixel coordinates
-  const pixelX = poi.x * mapDimensions. width
+  const pixelX = poi.x * mapDimensions.width
   const pixelY = poi.y * mapDimensions.height
-
+  const isMoving = movingPoiId === poi.id
+  const markerX = isMoving ? movingOffset.x * mapDimensions.width : pixelX
+  const markerY = isMoving ? movingOffset.y * mapDimensions.height : pixelY
   return (
     <div
       style={{
         position: 'absolute',
-        left: `${pixelX * scale + position.x}px`,
-        top: `${pixelY * scale + position.y}px`,
+        left: `${markerX * scale + position.x}px`,
+        top: `${markerY * scale + position.y}px`,
         transform: `translate(-50%, -100%) scale(${scale})`,
         transformOrigin: 'center bottom',
         zIndex: 5,
-        cursor: 'pointer'
+        cursor: isMoving ? 'grabbing' : 'pointer',
+        opacity: isMoving ? 0.7 : 1
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={(e) => {
+      onMouseDown={e => {
+        if (e.ctrlKey) {
+          e.stopPropagation()
+          setMovingPoiId(poi.id)
+          // Set initial offset to current position
+          setMovingOffset({ x: poi.x, y: poi.y })
+        }
+      }}
+      onClick={e => {
+        if (e.ctrlKey) return // Don't navigate if ctrl is pressed
         e.stopPropagation()
         if (poi.wiki_page_id) {
-          // Find the wiki page slug and navigate to it
           supabase
             .from('wiki_pages')
             .select('slug')
@@ -541,12 +593,12 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
             .single()
             .then(({ data }) => {
               if (data) {
-                router. push(`/wiki/${data.slug}`)
+                router.push(`/wiki/${data.slug}`)
               }
             })
         }
       }}
-      onContextMenu={(e) => {
+      onContextMenu={e => {
         e.preventDefault()
         e.stopPropagation()
         if (canDelete) {
@@ -559,7 +611,7 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
       {/* Pin Icon */}
       <div 
         style={{
-          fontSize: '8rem',
+          fontSize: '6rem',
           filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
           color: theme.colors.danger,
           transition: 'transform 0.2s',
@@ -582,7 +634,7 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
             border: `1px solid ${theme.colors.primary}`,
             borderRadius:  theme.borderRadius,
             color:  theme.colors.text.primary,
-            fontSize: '3.75rem', // 0.75rem * 5 = 3.75rem
+            fontSize: '4rem',
             fontWeight: 'bold',
             whiteSpace: 'nowrap',
             pointerEvents: 'none'
