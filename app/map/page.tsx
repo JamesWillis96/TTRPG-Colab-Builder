@@ -80,8 +80,6 @@ export default function MapEditorPage() {
     switch (category) {
       case 'npc': return '👤'
       case 'faction': return '🛡️'
-      case 'lore': return '📜'
-      case 'general': return '📄'
       default: return '📍'
     }
   }
@@ -527,8 +525,6 @@ export default function MapEditorPage() {
                 <option value="location">📍 Location</option>
                 <option value="npc">👤 NPC</option>
                 <option value="faction">🛡️ Faction</option>
-                <option value="lore">📜 Lore</option>
-                <option value="general">📄 General</option>
               </select>
             </div>
 
