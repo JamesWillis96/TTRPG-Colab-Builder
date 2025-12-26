@@ -21,6 +21,13 @@ export default function CreateWikiPage() {
 
   const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
 
+  // When category changes, update content to the template for that category
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value
+    setCategory(newCategory)
+    setContent(getTemplate(newCategory))
+  }
+
   const getTemplate = (cat: string) => {
     const templates: Record<string, string> = {
       npc: `# [NPC Name]
@@ -32,17 +39,17 @@ export default function CreateWikiPage() {
 **Alignment:** [Alignment]
 ---
 
-## Who is this character? What is their role in the world?
+### Who is this character? What is their role in the world?
 
-## What do they look like? What stands out about their appearance?
+### What do they look like? What stands out about their appearance?
 
-## What motivates them? What are their goals, fears, or secrets?
+### What motivates them? What are their goals, fears, or secrets?
 
-## Who are their friends, allies, or enemies?
+### Who are their friends, allies, or enemies?
 
-## What is a memorable quote or saying from this character?
+### What is a memorable quote or saying from this character?
 
-## What is something unexpected about them?
+### What is something unexpected about them?
 
 ## Additional Notes
 [Add any other interesting details or story hooks.]
@@ -175,15 +182,6 @@ export default function CreateWikiPage() {
     return templates[cat] || templates.player
   }
 
-  const handleAddTemplate = () => {
-    if (content.trim() !== '') {
-      if (!confirm('You have existing content. Adding a template will replace it. Are you sure?')) {
-        return
-      }
-    }
-    setContent(getTemplate(category))
-  }
-
   const generateSlug = (title: string) => {
     return title
       .toLowerCase()
@@ -281,15 +279,18 @@ export default function CreateWikiPage() {
               </label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={handleCategoryChange}
                 style={styles.select}
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>
-                    {cat. charAt(0).toUpperCase() + cat.slice(1)}
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </option>
                 ))}
               </select>
+              <div style={{ color: theme.colors.danger, fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                Changing the category will delete all information in the text field and replace it with a new template.
+              </div>
             </div>
           </div>
 
@@ -312,49 +313,16 @@ export default function CreateWikiPage() {
               </button>
             </div>
 
-            {! showPreview ?  (
+            {!showPreview ?  (
               <div>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   required
-                  placeholder="Write your content in Markdown... 
-
-## Heading 2
-### Heading 3
-
-**Bold text**
-*Italic text*
-
-- List item 1
-- List item 2
-
-[Link text](https://example.com)
-
-![Image alt text](image-url)"
+                  placeholder="Write your content in Markdown... \n\n## Heading 2\n### Heading 3\n\n**Bold text**\n*Italic text*\n\n- List item 1\n- List item 2\n\n[Link text](https://example.com)\n\n![Image alt text](image-url)"
                   rows={20}
                   style={styles.textarea}
                 />
-                <div style={{ 
-                  marginTop: '0.5rem', 
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ 
-                    fontSize: '0.75rem', 
-                    color: '#666' 
-                  }}>
-                    Supports Markdown formatting
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAddTemplate}
-                    style={styles.button.primary}
-                  >
-                    Add Template
-                  </button>
-                </div>
               </div>
             ) : (
               <div style={styles.preview}>
