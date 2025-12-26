@@ -19,7 +19,7 @@ export default function CreateWikiPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player']
+  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
 
   const getTemplate = (cat: string) => {
     const templates: Record<string, string> = {
