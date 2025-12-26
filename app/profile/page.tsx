@@ -9,6 +9,7 @@ export default function ProfilePage() {
   const { user } = useAuth()
   const [username, setUsername] = useState('')
   const [role, setRole] = useState('player')
+  const [aboutMe, setAboutMe] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -31,6 +32,7 @@ export default function ProfilePage() {
 
       setUsername(data.username)
       setRole(data.role)
+      setAboutMe(data.aboutMe || '')
     } catch (error: any) {
       console.error('Error loading profile:', error.message)
     } finally {
@@ -46,7 +48,7 @@ export default function ProfilePage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ username, role })
+        .update({ username, role, aboutMe })
         .eq('id', user!.id)
 
       if (error) throw error
@@ -113,6 +115,19 @@ export default function ProfilePage() {
             <option value="gm">Game Master</option>
             <option value="admin">Admin</option>
           </select>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={styles.label}>
+            About Me
+          </label>
+          <textarea
+            value={aboutMe}
+            onChange={(e) => setAboutMe(e.target.value)}
+            rows={4}
+            style={{ ...styles.input, resize: 'vertical', minHeight: 80 }}
+            placeholder="Tell us a bit about yourself..."
+          />
         </div>
 
         {message && (
