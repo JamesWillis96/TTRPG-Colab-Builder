@@ -20,7 +20,7 @@ export default function MapEditorPage() {
   const router = useRouter()
   
   const containerRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(0.1)
+  const [scale, setScale] = useState(0.2)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y:  0 })
@@ -582,7 +582,7 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
             border: `1px solid ${theme.colors.primary}`,
             borderRadius:  theme.borderRadius,
             color:  theme.colors.text.primary,
-            fontSize: '0.75rem',
+            fontSize: '3.75rem', // 0.75rem * 5 = 3.75rem
             fontWeight: 'bold',
             whiteSpace: 'nowrap',
             pointerEvents: 'none'
