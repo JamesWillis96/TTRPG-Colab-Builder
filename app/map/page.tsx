@@ -11,19 +11,20 @@ type POI = {
   x: number  // Now stored as ratio (0-1) of map width
   y: number  // Now stored as ratio (0-1) of map height
   title: string
-  wiki_page_id?:  string
-  created_by?:  string
+  wiki_page_id?: string
+  created_by?: string
+  category?: string // Added category
 }
 
 export default function MapEditorPage() {
-  const { user, loading:  authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.2)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y:  0 })
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [pois, setPois] = useState<POI[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newPoiPosition, setNewPoiPosition] = useState({ x: 0, y: 0 })
@@ -35,7 +36,7 @@ export default function MapEditorPage() {
   const [movingOffset, setMovingOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
 
   useEffect(() => {
-    if (!authLoading && ! user) {
+    if (!authLoading && !user) {
       router.push('/login')
     } else if (user) {
       loadMapDimensions()
@@ -67,19 +68,29 @@ export default function MapEditorPage() {
       } else {
         setPois(data || [])
       }
-    } catch (error:  any) {
+    } catch (error: any) {
       console.error('Error loading POIs:', error)
     } finally {
       setLoading(false)
     }
   }
 
+  // Utility to get icon for category
+  const getPOIIcon = (category: string) => {
+    switch (category) {
+      case 'npc': return '👤'
+      case 'faction': return '🛡️'
+      case 'lore': return '📜'
+      case 'general': return '📄'
+      default: return '📍'
+    }
+  }
 
   // Handle mouse wheel for zoom
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     
-    if (! containerRef.current) return
+    if (!containerRef.current) return
     
     const rect = containerRef.current.getBoundingClientRect()
     
@@ -93,7 +104,7 @@ export default function MapEditorPage() {
     
     // Calculate new scale
     const delta = e.deltaY * -0.001
-    const newScale = Math. min(Math.max(0.1, scale + delta), 5)
+    const newScale = Math.min(Math.max(0.1, scale + delta), 5)
     
     // Calculate new position to keep mouse point fixed
     const newX = mouseX - mapX * newScale
@@ -101,7 +112,7 @@ export default function MapEditorPage() {
     
     setScale(newScale)
     setPosition({ x: newX, y: newY })
-    }
+  }
 
   // Handle mouse down to start dragging
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -119,7 +130,7 @@ export default function MapEditorPage() {
     if (!isDragging) return
 
     setPosition({
-      x: e. clientX - dragStart.x,
+      x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y
     })
   }
@@ -139,7 +150,7 @@ export default function MapEditorPage() {
     
     // Calculate click position relative to container
     const clickX = e.clientX - rect.left
-    const clickY = e. clientY - rect.top
+    const clickY = e.clientY - rect.top
     
     // Calculate position on the actual map (accounting for pan and zoom)
     const mapX = (clickX - position.x) / scale
@@ -162,9 +173,9 @@ export default function MapEditorPage() {
 
     try {
       // Create wiki page
-      const slug = poiTitle. toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      const slug = poiTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')
       
-      const { data: wikiPage, error:  wikiError } = await supabase
+      const { data: wikiPage, error: wikiError } = await supabase
         .from('wiki_pages')
         .insert({
           title: poiTitle,
@@ -178,7 +189,7 @@ export default function MapEditorPage() {
 
       if (wikiError) {
         console.error('Error creating wiki page:', wikiError)
-        alert('Error creating wiki page:  ' + wikiError.message)
+        alert('Error creating wiki page: ' + wikiError.message)
         return
       }
 
@@ -190,7 +201,8 @@ export default function MapEditorPage() {
           y: newPoiPosition.y,
           title: poiTitle,
           wiki_page_id: wikiPage.id,
-          created_by: user.id
+          created_by: user.id,
+          category: poiCategory // Add category here
         })
         .select()
         .single()
@@ -216,12 +228,12 @@ export default function MapEditorPage() {
   // Delete POI
   const handleDeletePOI = async (poi: POI) => {
     // Check if user owns this POI
-    if (poi.created_by !== user?. id) {
+    if (poi.created_by !== user?.id) {
       alert('You can only delete POIs you created!')
       return
     }
 
-    if (! confirm('Delete this POI?')) return
+    if (!confirm('Delete this POI?')) return
     
     try {
       const { error } = await supabase
@@ -246,7 +258,7 @@ export default function MapEditorPage() {
   // Reset view
   const resetView = () => {
     setScale(0.1)
-    setPosition({ x: 0, y:  0 })
+    setPosition({ x: 0, y: 0 })
   }
 
   const handleMapMouseMove = (e: React.MouseEvent) => {
@@ -333,7 +345,7 @@ export default function MapEditorPage() {
         {/* Zoom Controls */}
         <div style={{
           background: theme.colors.background.secondary,
-          border:  `1px solid ${theme.colors.border.primary}`,
+          border: `1px solid ${theme.colors.border.primary}`,
           borderRadius: theme.borderRadius,
           padding: '0.5rem',
           display: 'flex',
@@ -349,7 +361,7 @@ export default function MapEditorPage() {
               border: `1px solid ${theme.colors.border.secondary}`,
               borderRadius: theme.borderRadius,
               cursor: 'pointer',
-              fontSize: '1. 25rem',
+              fontSize: '1.25rem',
               fontWeight: 'bold'
             }}
           >
@@ -362,9 +374,9 @@ export default function MapEditorPage() {
               background: theme.colors.background.tertiary,
               color: theme.colors.text.primary,
               border: `1px solid ${theme.colors.border.secondary}`,
-              borderRadius:  theme.borderRadius,
-              cursor:  'pointer',
-              fontSize:  '1.25rem',
+              borderRadius: theme.borderRadius,
+              cursor: 'pointer',
+              fontSize: '1.25rem',
               fontWeight: 'bold'
             }}
           >
@@ -374,7 +386,7 @@ export default function MapEditorPage() {
             onClick={resetView}
             style={{
               padding: '0.5rem 1rem',
-              background:  theme.colors.background.tertiary,
+              background: theme.colors.background.tertiary,
               color: theme.colors.text.primary,
               border: `1px solid ${theme.colors.border.secondary}`,
               borderRadius: theme.borderRadius,
@@ -407,8 +419,10 @@ export default function MapEditorPage() {
         <div>🖱️ Click and drag to pan</div>
         <div>🔍 Scroll to zoom</div>
         <div>📍 Right-click to add POI</div>
+        <div>✋ Ctrl+Click and drag a pin to move it</div>
+        <div>🖱️ Click a pin to open its wiki page</div>
         <div style={{ marginTop: '0.5rem', color: theme.colors.text.muted }}>
-          POIs:  {pois.length}
+          POIs: {pois.length}
         </div>
       </div>
 
@@ -447,6 +461,7 @@ export default function MapEditorPage() {
             setMovingPoiId={setMovingPoiId}
             movingOffset={movingOffset}
             setMovingOffset={setMovingOffset}
+            icon={getPOIIcon(poi.category || 'location')}
           />
         ))}
       </div>
@@ -462,7 +477,7 @@ export default function MapEditorPage() {
           background: 'rgba(0,0,0,0.8)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent:  'center',
+          justifyContent: 'center',
           zIndex: 100
         }}
         onClick={() => setShowCreateModal(false)}
@@ -481,14 +496,14 @@ export default function MapEditorPage() {
               📍 Create Point of Interest
             </h2>
 
-            <div style={{ marginBottom:  '1rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
               <label style={styles.label}>
                 Location Name
               </label>
               <input
                 type="text"
                 value={poiTitle}
-                onChange={(e) => setPoiTitle(e.target. value)}
+                onChange={(e) => setPoiTitle(e.target.value)}
                 placeholder="e.g., Dragon's Peak, The Forgotten Temple"
                 autoFocus
                 style={styles.input}
@@ -540,7 +555,7 @@ export default function MapEditorPage() {
 }
 
 // Separate component for POI markers to manage individual hover states
-function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canDelete, movingPoiId, setMovingPoiId, movingOffset, setMovingOffset }: {
+function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canDelete, movingPoiId, setMovingPoiId, movingOffset, setMovingOffset, icon }: {
   poi: POI
   scale: number
   position: { x: number, y: number }
@@ -552,6 +567,7 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
   setMovingPoiId: (id: string | null) => void
   movingOffset: { x: number, y: number }
   setMovingOffset: (offset: {x: number, y: number}) => void
+  icon: string
 }) {
   const [isHovered, setIsHovered] = useState(false)
   // Convert ratio (0-1) back to pixel coordinates
@@ -618,7 +634,7 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
           transform: isHovered ? 'scale(1.3)' : 'scale(1)'
         }}
       >
-        📍
+        {icon}
       </div>
       {/* Label - Only shows on hover */}
       {isHovered && (
@@ -632,8 +648,8 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
             padding: '0.25rem 0.5rem',
             background: theme.colors.background.secondary,
             border: `1px solid ${theme.colors.primary}`,
-            borderRadius:  theme.borderRadius,
-            color:  theme.colors.text.primary,
+            borderRadius: theme.borderRadius,
+            color: theme.colors.text.primary,
             fontSize: '4rem',
             fontWeight: 'bold',
             whiteSpace: 'nowrap',
