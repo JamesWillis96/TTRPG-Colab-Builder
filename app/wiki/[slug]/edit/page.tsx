@@ -93,12 +93,9 @@ export default function EditWikiPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!user || !page) return
-
     setSaving(true)
     setError('')
-
     try {
       const newSlug = generateSlug(title)
       // Debug: log update payload
@@ -117,27 +114,23 @@ export default function EditWikiPage() {
           .select('id')
           .eq('slug', newSlug)
           .single()
-
         if (existing) {
           setError('A page with this title already exists.  Please choose a different title.')
           setSaving(false)
           return
         }
       }
-
-      const { error:  updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('wiki_pages')
         .update({
           title,
           slug: newSlug,
-          content,
+          content, // replace instead of append
           category,
           updated_at: new Date().toISOString()
         })
         .eq('id', page.id)
-
       if (updateError) throw updateError
-
       // Redirect to the (possibly new) slug
       router.push(`/wiki/${newSlug}`)
     } catch (err: any) {
