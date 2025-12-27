@@ -16,8 +16,8 @@ type WikiPage = {
   category: string
   author_id: string
   created_at: string
-  updated_at:  string
-  profile?:  {
+  updated_at: string
+  profile?: {
     username: string
   }
 }
@@ -40,7 +40,7 @@ export default function WikiPageView() {
 
   const loadPage = async () => {
     setLoading(true)
-    
+
     try {
       const { data, error } = await supabase
         .from('wiki_pages')
@@ -53,13 +53,13 @@ export default function WikiPageView() {
       // Get the author profile
       if (data) {
         const { data: profileData } = await supabase
-          . from('profiles')
+          .from('profiles')
           .select('*')
           .eq('id', data.author_id)
           .single()
 
         const pageData = {
-          ... data,
+          ...data,
           profile: profileData
         }
 
@@ -75,21 +75,21 @@ export default function WikiPageView() {
 
           const isAuthor = user.id === data.author_id
           const isAdmin = userProfile?.role === 'admin'
-          
+
           setIsAuthorized(isAuthor || isAdmin)
         } else {
           setIsAuthorized(false)
         }
       }
-    } catch (error:  any) {
-      console.error('Error loading wiki page:', error. message)
+    } catch (error: any) {
+      console.error('Error loading wiki page:', error.message)
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async () => {
-    if (! confirm('Are you sure you want to delete this page?  This cannot be undone.')) return
+    if (!confirm('Are you sure you want to delete this page? This cannot be undone.')) return
 
     try {
       const { error } = await supabase
@@ -101,12 +101,12 @@ export default function WikiPageView() {
 
       router.push('/wiki')
     } catch (error: any) {
-      alert('Error deleting page: ' + error. message)
+      alert('Error deleting page: ' + error.message)
     }
   }
 
   const getCategoryColor = (category: string) => {
-    const colors:  Record<string, string> = {
+    const colors: Record<string, string> = {
       npc: theme.colors.primary, // Blood red for NPCs
       location: theme.colors.secondary, // Forest green for locations
       lore: '#6B5B47', // Tertiary brown for lore
@@ -123,14 +123,14 @@ export default function WikiPageView() {
       location: '📍',
       lore: '📜',
       item: '⚔️',
-      faction:  '🛡️',
+      faction: '🛡️',
       general: '📄'
     }
     return icons[category] || '📄'
   }
 
   if (loading) {
-    return <div style={{ ...styles.container, textAlign:  'center', color: theme.colors.text.secondary }}>Loading... </div>
+    return <div style={{ ...styles.container, textAlign: 'center', color: theme.colors.text.secondary }}>Loading... </div>
   }
 
   if (!page) {
@@ -164,7 +164,7 @@ export default function WikiPageView() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems:  'center', gap: '1rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '2rem' }}>
                 {getCategoryIcon(page.category)}
               </span>
@@ -174,19 +174,19 @@ export default function WikiPageView() {
             </div>
 
             <div style={{
-              display:  'flex',
-              gap:  '1rem',
+              display: 'flex',
+              gap: '1rem',
               alignItems: 'center',
               fontSize: '0.875rem',
               color: theme.colors.text.secondary,
-              flexWrap:  'wrap'
+              flexWrap: 'wrap'
             }}>
               <span style={{
                 padding: '0.25rem 0.75rem',
                 background: getCategoryColor(page.category) + '20',
                 color: getCategoryColor(page.category),
                 fontWeight: 'bold',
-                textTransform:  'capitalize',
+                textTransform: 'capitalize',
                 borderRadius: '4px'
               }}>
                 {page.category}
@@ -204,11 +204,11 @@ export default function WikiPageView() {
                 <strong>Created:</strong> {new Date(page.created_at).toLocaleDateString()}
               </span>
 
-              {page.created_at !== page. updated_at && (
+              {page.created_at !== page.updated_at && (
                 <>
                   <span style={{ color: theme.colors.text.secondary }}>•</span>
                   <span>
-                    <strong>Updated: </strong> {new Date(page. updated_at).toLocaleDateString()}
+                    <strong>Updated: </strong> {new Date(page.updated_at).toLocaleDateString()}
                   </span>
                 </>
               )}
@@ -237,12 +237,31 @@ export default function WikiPageView() {
 
       {/* Page Content */}
       <div style={{
-        background: theme.colors.background.secondary,
-        border: `1px solid ${theme.colors.border.primary}`,
+        background: '#f9f7f3', // off-white background
+        border: `1px solid #ddd`,
         borderRadius: theme.borderRadius,
         padding: '2rem'
       }}>
-        <div className="markdown-content" style={{ color: theme.colors.text.primary }}>
+        <div className="markdown-content">
+          <style>{`
+            .markdown-content h3 {
+              background: linear-gradient(90deg, #7c4a03 0%, #3e2a13 80%, #111 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              text-fill-color: transparent;
+              font-weight: 700;
+            }
+            .markdown-content h1 {
+              color: ${theme.colors.primary};
+              font-weight: 800;
+              letter-spacing: 0.5px;
+            }
+            .markdown-content strong {
+              color: ${theme.colors.secondary};
+              font-weight: 700;
+            }
+          `}</style>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {page.content}
           </ReactMarkdown>

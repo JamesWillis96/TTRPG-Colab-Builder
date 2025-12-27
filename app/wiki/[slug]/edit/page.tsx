@@ -509,14 +509,33 @@ export default function EditWikiPage() {
             ) : (
               <div style={{
                 padding: '1rem',
-                background: '#0a0a0a',
-                border: '1px solid #444',
+                background: '#f9f7f3', // off-white background
+                border: '1px solid #ddd',
                 borderRadius: '4px',
                 minHeight: '400px',
-                color: theme.colors.text.primary
+                color: '#222',
               }}>
                 {content ?  (
-                  <div className="markdown-content" style={{ color: theme.colors.text.primary }}>
+                  <div className="markdown-content">
+                    <style>{`
+                      .markdown-content h3 {
+                        background: linear-gradient(90deg, #7c4a03 0%, #3e2a13 80%, #111 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        background-clip: text;
+                        text-fill-color: transparent;
+                        font-weight: 700;
+                      }
+                      .markdown-content h1 {
+                        color: ${theme.colors.primary};
+                        font-weight: 800;
+                        letter-spacing: 0.5px;
+                      }
+                      .markdown-content strong {
+                        color: ${theme.colors.secondary};
+                        font-weight: 700;
+                      }
+                    `}</style>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {content}
                     </ReactMarkdown>
