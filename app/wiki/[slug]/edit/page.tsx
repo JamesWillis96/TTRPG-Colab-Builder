@@ -60,7 +60,7 @@ export default function EditWikiPage() {
 
       setPage(data)
       setTitle(data.title)
-      setContent(data. content)
+      setContent(data.content)
       setCategory(data.category)
 
       // Check if user is authorized (author or admin)
