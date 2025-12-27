@@ -36,7 +36,7 @@ export default function CreateWikiPage() {
 
 ### What is something unexpected about them?
 
-## Additional Notes
+### Additional Notes
 [Add any other interesting details or story hooks.]
 `,
       player: `# [Player Character Name]
@@ -49,23 +49,23 @@ export default function CreateWikiPage() {
 **Favorite Color:** [Color]
 ---
 
-## What is your character's background and origin story?
+### What is your character's background and origin story?
 
-## What are their core beliefs, values, or driving motivations?
+### What are their core beliefs, values, or driving motivations?
 
-## What do they look like? Any distinguishing features?
+### What do they look like? Any distinguishing features?
 
-## What is their greatest strength? What is their greatest flaw?
+### What is their greatest strength? What is their greatest flaw?
 
-## Who are their closest allies or rivals?
+### Who are their closest allies or rivals?
 
-## What is a secret your character keeps (from the party or the world)?
+### What is a secret your character keeps (from the party or the world)?
 
-## What is a goal your character wants to achieve?
+### What is a goal your character wants to achieve?
 
-## What is a memorable moment from their adventures so far?
+### What is a memorable moment from their adventures so far?
 
-## Additional Notes
+### Additional Notes
 [Add any other personal details, quirks, or aspirations.]
 `,
       location: `# [Location Name]
@@ -77,19 +77,19 @@ export default function CreateWikiPage() {
 **Factions Present:** [Factions]
 ---
 
-## What makes this place unique or important?
+### What makes this place unique or important?
 
-## What is the environment like? (Climate, terrain, notable features)
+### What is the environment like? (Climate, terrain, notable features)
 
-## Who lives here or frequents this location?
+### Who lives here or frequents this location?
 
-## What is the history or legend behind this place?
+### What is the history or legend behind this place?
 
-## What dangers or mysteries might visitors encounter?
+### What dangers or mysteries might visitors encounter?
 
-## What is a rumor or secret about this location?
+### What is a rumor or secret about this location?
 
-## Additional Notes
+### Additional Notes
 [Add any other interesting facts, hooks, or connections.]
 `,
       lore: `# [Lore Topic]
@@ -100,19 +100,19 @@ export default function CreateWikiPage() {
 **Era:** [Time period]
 ---
 
-## What is the essence of this lore or story element?
+### What is the essence of this lore or story element?
 
-## How did it originate? Who or what is involved?
+### How did it originate? Who or what is involved?
 
-## What are the key events or turning points?
+### What are the key events or turning points?
 
-## How does this lore impact the world or its people?
+### How does this lore impact the world or its people?
 
-## What mysteries or unresolved questions surround it?
+### What mysteries or unresolved questions surround it?
 
-## Why does this matter to the campaign or characters?
+### Why does this matter to the campaign or characters?
 
-## Additional Notes
+### Additional Notes
 [Add any other context, theories, or implications.]
 `,
       item: `# [Item Name]
@@ -123,19 +123,19 @@ export default function CreateWikiPage() {
 **Value:** [Gold piece equivalent or other value]
 ---
 
-## What is this item and what does it look like?
+### What is this item and what does it look like?
 
-## What is its origin or history?
+### What is its origin or history?
 
-## What powers, abilities, or properties does it have?
+### What powers, abilities, or properties does it have?
 
-## Who can use it, and are there any requirements or restrictions?
+### Who can use it, and are there any requirements or restrictions?
 
-## What is a story or rumor associated with this item?
+### What is a story or rumor associated with this item?
 
-## What is a drawback, risk, or cost of using it?
+### What is a drawback, risk, or cost of using it?
 
-## Additional Notes
+### Additional Notes
 [Add any other details, plot hooks, or secrets.]
 `,
       faction: `# [Faction Name]
@@ -146,21 +146,21 @@ export default function CreateWikiPage() {
 **Primary Goal:** [Goal or ideology]
 ---
 
-## What is the purpose or ideology of this group?
+### What is the purpose or ideology of this group?
 
-## Who leads it, and how is it organized?
+### Who leads it, and how is it organized?
 
-## What is the group's history or origin?
+### What is the group's history or origin?
 
-## Who are its allies and enemies?
+### Who are its allies and enemies?
 
-## What resources, power, or influence does it have?
+### What resources, power, or influence does it have?
 
-## What are its current goals or activities?
+### What are its current goals or activities?
 
-## What is a secret or internal conflict within the faction?
+### What is a secret or internal conflict within the faction?
 
-## Additional Notes
+### Additional Notes
 [Add any other relevant information, rumors, or story hooks.]
 `
     }
@@ -399,15 +399,25 @@ export default function CreateWikiPage() {
             ) : (
               <div style={{
                 ...styles.preview,
-                background: '#181a1b', // dark background for contrast
-                color: '#f5f5f7', // light text for readability
+                background: '#f9f7f3', // off-white background
+                color: '#222',
                 borderRadius: '6px',
-                border: '1px solid #333',
+                border: '1px solid #ddd',
                 padding: '1.5rem',
                 minHeight: '400px',
               }}>
                 {content ?  (
-                  <div className="markdown-content" style={{ color: '#f5f5f7' }}>
+                  <div className="markdown-content">
+                    <style>{`
+                      .markdown-content h3 {
+                        background: linear-gradient(90deg, #7c4a03 0%, #3e2a13 80%, #111 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                        background-clip: text;
+                        text-fill-color: transparent;
+                        font-weight: 700;
+                      }
+                    `}</style>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {content}
                     </ReactMarkdown>
