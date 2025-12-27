@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -12,22 +12,6 @@ export default function CreateWikiPage() {
   const { user } = useAuth()
   const router = useRouter()
   
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [category, setCategory] = useState('player character')
-  const [showPreview, setShowPreview] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
-
-  // When category changes, update content to the template for that category
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newCategory = e.target.value
-    setCategory(newCategory)
-    setContent(getTemplate(newCategory))
-  }
-
   const getTemplate = (cat: string) => {
     const templates: Record<string, string> = {
       npc: `# [NPC Name]
@@ -182,6 +166,41 @@ export default function CreateWikiPage() {
     return templates[cat] || templates.player
   }
 
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState(getTemplate('player character'))
+  const [category, setCategory] = useState('player character')
+  const [showPreview, setShowPreview] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showCategoryConfirm, setShowCategoryConfirm] = useState(false)
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null)
+  const prevCategoryRef = useRef(category)
+
+  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
+
+  // When category changes, show confirmation bubble before applying
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value
+    if (newCategory === category) return
+    setPendingCategory(newCategory)
+    setShowCategoryConfirm(true)
+  }
+
+  const handleConfirmCategoryChange = () => {
+    if (pendingCategory) {
+      setCategory(pendingCategory)
+      setContent(getTemplate(pendingCategory))
+      prevCategoryRef.current = pendingCategory
+    }
+    setShowCategoryConfirm(false)
+    setPendingCategory(null)
+  }
+
+  const handleCancelCategoryChange = () => {
+    setShowCategoryConfirm(false)
+    setPendingCategory(null)
+  }
+
   const generateSlug = (title: string) => {
     return title
       .toLowerCase()
@@ -278,9 +297,10 @@ export default function CreateWikiPage() {
                 Category *
               </label>
               <select
-                value={category}
+                value={pendingCategory || category}
                 onChange={handleCategoryChange}
                 style={styles.select}
+                disabled={showCategoryConfirm}
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>
@@ -288,9 +308,46 @@ export default function CreateWikiPage() {
                   </option>
                 ))}
               </select>
-              <div style={{ color: theme.colors.danger, fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                Changing the category will delete all information in the text field and replace it with a new template.
-              </div>
+              {/* Confirmation Bubble for Category Change */}
+              {showCategoryConfirm && (
+                <div style={{
+                  position: 'absolute',
+                  background: '#fff',
+                  border: `2px solid ${theme.colors.danger}`,
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 12px #0002',
+                  padding: '1rem',
+                  zIndex: 10,
+                  marginTop: '0.5rem',
+                  left: 0,
+                  right: 0,
+                  maxWidth: '320px',
+                  color: theme.colors.primary,
+                }}>
+                  <div style={{ fontWeight: 600, color: theme.colors.danger, marginBottom: '0.5rem' }}>
+                    Change Category?
+                  </div>
+                  <div style={{ fontSize: '0.95rem', marginBottom: '1rem' }}>
+                    Changing the category will <b>replace all text</b> in the editor with a new template. Are you sure?
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={handleCancelCategoryChange}
+                      style={{ ...styles.buttonSecondary, minWidth: 80 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmCategoryChange}
+                      style={{ ...styles.buttonPrimary, minWidth: 80 }}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
