@@ -292,7 +292,7 @@ export default function CreateWikiPage() {
               />
             </div>
 
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={styles.label}>
                 Category *
               </label>
@@ -312,17 +312,17 @@ export default function CreateWikiPage() {
               {showCategoryConfirm && (
                 <div style={{
                   position: 'absolute',
+                  top: 0,
+                  left: 'calc(100% + 12px)', // stick to right of select with 12px padding
                   background: '#fff',
                   border: `2px solid ${theme.colors.danger}`,
                   borderRadius: '8px',
                   boxShadow: '0 2px 12px #0002',
                   padding: '1rem',
                   zIndex: 10,
-                  marginTop: '0.5rem',
-                  left: 0,
-                  right: 0,
                   maxWidth: '320px',
                   color: theme.colors.primary,
+                  minWidth: '220px',
                 }}>
                   <div style={{ fontWeight: 600, color: theme.colors.danger, marginBottom: '0.5rem' }}>
                     Change Category?
