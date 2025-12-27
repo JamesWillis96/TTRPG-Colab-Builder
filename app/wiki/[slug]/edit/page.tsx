@@ -172,7 +172,7 @@ export default function EditWikiPage() {
             </div>
           </div>
           <div>
-            <div style={styles.tabContainer}></div>
+            <div style={styles.tabContainer}>
               <button type="button" onClick={() => setShowPreview(false)} style={showPreview ? styles.tab.inactive : styles.tab.active}>✏️ Edit</button>
               <button type="button" onClick={() => setShowPreview(true)} style={showPreview ? styles.tab.active : styles.tab.inactive}>👁️ Preview</button>
             </div>
