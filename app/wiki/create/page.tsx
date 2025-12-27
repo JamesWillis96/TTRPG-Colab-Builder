@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { styles, theme } from '../../../lib/theme'
+import { createPortal } from 'react-dom'
 
 export default function CreateWikiPage() {
   const { user } = useAuth()
@@ -175,8 +176,20 @@ export default function CreateWikiPage() {
   const [showCategoryConfirm, setShowCategoryConfirm] = useState(false)
   const [pendingCategory, setPendingCategory] = useState<string | null>(null)
   const prevCategoryRef = useRef(category)
+  const selectRef = useRef<HTMLSelectElement>(null)
+  const [bubblePos, setBubblePos] = useState<{top: number, left: number} | null>(null)
 
   const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
+
+  useEffect(() => {
+    if (showCategoryConfirm && selectRef.current) {
+      const rect = selectRef.current.getBoundingClientRect()
+      setBubblePos({
+        top: rect.top + window.scrollY,
+        left: rect.right + 12 + window.scrollX // 12px padding
+      })
+    }
+  }, [showCategoryConfirm])
 
   // When category changes, show confirmation bubble before applying
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -297,6 +310,7 @@ export default function CreateWikiPage() {
                 Category *
               </label>
               <select
+                ref={selectRef}
                 value={pendingCategory || category}
                 onChange={handleCategoryChange}
                 style={styles.select}
@@ -309,17 +323,17 @@ export default function CreateWikiPage() {
                 ))}
               </select>
               {/* Confirmation Bubble for Category Change */}
-              {showCategoryConfirm && (
+              {showCategoryConfirm && bubblePos && createPortal(
                 <div style={{
                   position: 'absolute',
-                  top: 0,
-                  left: 'calc(100% + 12px)', // stick to right of select with 12px padding
+                  top: bubblePos.top,
+                  left: bubblePos.left,
                   background: '#fff',
                   border: `2px solid ${theme.colors.danger}`,
                   borderRadius: '8px',
                   boxShadow: '0 2px 12px #0002',
                   padding: '1rem',
-                  zIndex: 10,
+                  zIndex: 1000,
                   maxWidth: '320px',
                   color: theme.colors.primary,
                   minWidth: '220px',
@@ -346,7 +360,8 @@ export default function CreateWikiPage() {
                       Confirm
                     </button>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
