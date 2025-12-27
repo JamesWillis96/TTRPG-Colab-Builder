@@ -38,10 +38,14 @@ export default function EditWikiPage() {
           setContent(data.content)
           setCategory(data.category)
           setPageId(data.id)
+          console.log('Loaded page:', data)
+          if (user) {
+            console.log('Current user id:', user.id, 'Page author_id:', data.author_id)
+          }
         }
         if (error) setError('Failed to load page')
       })
-  }, [slug])
+  }, [slug, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +61,9 @@ export default function EditWikiPage() {
         .eq('id', pageId)
         .select()
       console.log('Update result:', { updateError, updateData })
+      if (!updateError && (Array.isArray(updateData) && updateData.length === 0)) {
+        console.warn('Update returned no data. This may be an RLS or permission issue.')
+      }
       if (updateError) throw updateError
       router.push(`/wiki/${newSlug}`)
     } catch (err: any) {
