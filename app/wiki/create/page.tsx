@@ -397,15 +397,23 @@ export default function CreateWikiPage() {
                 />
               </div>
             ) : (
-              <div style={styles.preview}>
+              <div style={{
+                ...styles.preview,
+                background: '#181a1b', // dark background for contrast
+                color: '#f5f5f7', // light text for readability
+                borderRadius: '6px',
+                border: '1px solid #333',
+                padding: '1.5rem',
+                minHeight: '400px',
+              }}>
                 {content ?  (
-                  <div className="markdown-content">
+                  <div className="markdown-content" style={{ color: '#f5f5f7' }}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {content}
                     </ReactMarkdown>
                   </div>
                 ) : (
-                  <p style={{ color: '#666', fontStyle: 'italic' }}>
+                  <p style={{ color: '#aaa', fontStyle: 'italic' }}>
                     Nothing to preview yet.  Start writing in the Edit tab!
                   </p>
                 )}
