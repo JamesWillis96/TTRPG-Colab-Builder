@@ -45,7 +45,7 @@ export default function CreateWikiPage() {
 **Race:** [Race]  
 **Class:** [Class]  
 **Background:** [Background]  
-**Alignment:** [Alignment]
+**Alignment:** [Alignment]  
 **Favorite Color:** [Color]
 ---
 

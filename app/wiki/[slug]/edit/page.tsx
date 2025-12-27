@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { supabase } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
@@ -34,8 +34,11 @@ export default function EditWikiPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null)
+  const [showCategoryConfirm, setShowCategoryConfirm] = useState(false)
+  const prevCategoryRef = useRef(category)
 
-  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'general']
+  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
 
   useEffect(() => {
     if (slug) {
@@ -136,6 +139,182 @@ export default function EditWikiPage() {
     }
   }
 
+  const getTemplate = (cat: string) => {
+    const templates: Record<string, string> = {
+      npc: `# [NPC Name]
+
+---
+**Race:** [Race]  
+**Class/Profession:** [Class/Profession]  
+**Background:** [Background]  
+**Alignment:** [Alignment]
+---
+
+### Who is this character? What is their role in the world?
+
+### What do they look like? What stands out about their appearance?
+
+### What motivates them? What are their goals, fears, or secrets?
+
+### Who are their friends, allies, or enemies?
+
+### What is a memorable quote or saying from this character?
+
+### What is something unexpected about them?
+
+## Additional Notes
+[Add any other interesting details or story hooks.]
+`,
+      'player character': `# [Player Character Name]
+
+---
+**Race:** [Race]  
+**Class:** [Class]  
+**Background:** [Background]  
+**Alignment:** [Alignment]  
+**Favorite Color:** [Color]
+---
+
+## What is your character's background and origin story?
+
+## What are their core beliefs, values, or driving motivations?
+
+## What do they look like? Any distinguishing features?
+
+## What is their greatest strength? What is their greatest flaw?
+
+## Who are their closest allies or rivals?
+
+## What is a secret your character keeps (from the party or the world)?
+
+## What is a goal your character wants to achieve?
+
+## What is a memorable moment from their adventures so far?
+
+## Additional Notes
+[Add any other personal details, quirks, or aspirations.]
+`,
+      location: `# [Location Name]
+
+---
+**Type:** [e.g., City, Forest, Dungeon, etc.]  
+**Region:** [Region or area]  
+**Notable NPCs:** [Key NPCs]  
+**Factions Present:** [Factions]
+---
+
+## What makes this place unique or important?
+
+## What is the environment like? (Climate, terrain, notable features)
+
+## Who lives here or frequents this location?
+
+## What is the history or legend behind this place?
+
+## What dangers or mysteries might visitors encounter?
+
+## What is a rumor or secret about this location?
+
+## Additional Notes
+[Add any other interesting facts, hooks, or connections.]
+`,
+      lore: `# [Lore Topic]
+
+---
+**Origin:** [How did this lore begin?]  
+**Key Figures:** [People or creatures involved]  
+**Era:** [Time period]
+---
+
+## What is the essence of this lore or story element?
+
+## How did it originate? Who or what is involved?
+
+## What are the key events or turning points?
+
+## How does this lore impact the world or its people?
+
+## What mysteries or unresolved questions surround it?
+
+## Why does this matter to the campaign or characters?
+
+## Additional Notes
+[Add any other context, theories, or implications.]
+`,
+      item: `# [Item Name]
+
+---
+**Type:** [Weapon, Armor, Potion, Artifact, etc.]  
+**Rarity:** [Common, Uncommon, Rare, Legendary, etc.]  
+**Value:** [Gold piece equivalent or other value]
+---
+
+## What is this item and what does it look like?
+
+## What is its origin or history?
+
+## What powers, abilities, or properties does it have?
+
+## Who can use it, and are there any requirements or restrictions?
+
+## What is a story or rumor associated with this item?
+
+## What is a drawback, risk, or cost of using it?
+
+## Additional Notes
+[Add any other details, plot hooks, or secrets.]
+`,
+      faction: `# [Faction Name]
+
+---
+**Leader:** [Name and title]  
+**Base of Operations:** [Location]  
+**Primary Goal:** [Goal or ideology]
+---
+
+## What is the purpose or ideology of this group?
+
+## Who leads it, and how is it organized?
+
+## What is the group's history or origin?
+
+## Who are its allies and enemies?
+
+## What resources, power, or influence does it have?
+
+## What are its current goals or activities?
+
+## What is a secret or internal conflict within the faction?
+
+## Additional Notes
+[Add any other relevant information, rumors, or story hooks.]
+`
+    }
+    return templates[cat] || templates['player character']
+  }
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value
+    if (newCategory === category) return
+    setPendingCategory(newCategory)
+    setShowCategoryConfirm(true)
+  }
+
+  const handleConfirmCategoryChange = () => {
+    if (pendingCategory) {
+      setCategory(pendingCategory)
+      setContent(getTemplate(pendingCategory))
+      prevCategoryRef.current = pendingCategory
+    }
+    setShowCategoryConfirm(false)
+    setPendingCategory(null)
+  }
+
+  const handleCancelCategoryChange = () => {
+    setShowCategoryConfirm(false)
+    setPendingCategory(null)
+  }
+
   if (loading) {
     return <div style={{ ...styles.container, textAlign: 'center', color: theme.colors.text.secondary }}>Loading...</div>
   }
@@ -205,16 +384,57 @@ export default function EditWikiPage() {
                 Category *
               </label>
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={pendingCategory || category}
+                onChange={handleCategoryChange}
                 style={styles.select}
+                disabled={showCategoryConfirm}
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>
-                    {cat. charAt(0).toUpperCase() + cat.slice(1)}
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </option>
                 ))}
               </select>
+              {/* Confirmation Bubble for Category Change */}
+              {showCategoryConfirm && (
+                <div style={{
+                  position: 'absolute',
+                  background: '#fff',
+                  border: `2px solid ${theme.colors.danger}`,
+                  borderRadius: '8px',
+                  boxShadow: '0 2px 12px #0002',
+                  padding: '1rem',
+                  zIndex: 10,
+                  marginTop: '0.5rem',
+                  left: 0,
+                  right: 0,
+                  maxWidth: '320px',
+                  color: theme.colors.primary,
+                }}>
+                  <div style={{ fontWeight: 600, color: theme.colors.danger, marginBottom: '0.5rem' }}>
+                    Change Category?
+                  </div>
+                  <div style={{ fontSize: '0.95rem', marginBottom: '1rem' }}>
+                    Changing the category will <b>replace all text</b> in the editor with a new template. Are you sure?
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={handleCancelCategoryChange}
+                      style={{ ...styles.buttonSecondary, minWidth: 80 }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmCategoryChange}
+                      style={{ ...styles.buttonPrimary, minWidth: 80 }}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -292,10 +512,11 @@ export default function EditWikiPage() {
                 background: '#0a0a0a',
                 border: '1px solid #444',
                 borderRadius: '4px',
-                minHeight: '400px'
+                minHeight: '400px',
+                color: theme.colors.text.primary
               }}>
                 {content ?  (
-                  <div className="markdown-content">
+                  <div className="markdown-content" style={{ color: theme.colors.text.primary }}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {content}
                     </ReactMarkdown>

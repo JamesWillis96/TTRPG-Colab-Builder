@@ -242,7 +242,7 @@ export default function WikiPageView() {
         borderRadius: theme.borderRadius,
         padding: '2rem'
       }}>
-        <div className="markdown-content">
+        <div className="markdown-content" style={{ color: theme.colors.text.primary }}>
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {page.content}
           </ReactMarkdown>
