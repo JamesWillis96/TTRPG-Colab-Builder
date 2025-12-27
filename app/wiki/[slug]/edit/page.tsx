@@ -101,7 +101,15 @@ export default function EditWikiPage() {
 
     try {
       const newSlug = generateSlug(title)
-      
+      // Debug: log update payload
+      console.log('Updating wiki_pages:', {
+        title,
+        slug: newSlug,
+        content,
+        category,
+        updated_at: new Date().toISOString(),
+        id: page.id
+      });
       // If title changed, check if new slug already exists
       if (newSlug !== page.slug) {
         const { data: existing } = await supabase
