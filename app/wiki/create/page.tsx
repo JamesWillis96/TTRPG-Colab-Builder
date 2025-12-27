@@ -417,6 +417,15 @@ export default function CreateWikiPage() {
                         text-fill-color: transparent;
                         font-weight: 700;
                       }
+                      .markdown-content h1 {
+                        color: ${theme.colors.primary};
+                        font-weight: 800;
+                        letter-spacing: 0.5px;
+                      }
+                      .markdown-content strong {
+                        color: ${theme.colors.secondary};
+                        font-weight: 700;
+                      }
                     `}</style>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {content}
