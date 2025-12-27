@@ -50,14 +50,18 @@ export default function EditWikiPage() {
     try {
       const newSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       if (!pageId) throw new Error('Page not loaded')
-      const { error: updateError } = await supabase
+      console.log('Submitting update:', { pageId, title, newSlug, content, category })
+      const { error: updateError, data: updateData } = await supabase
         .from('wiki_pages')
         .update({ title, slug: newSlug, content, category, updated_at: new Date().toISOString() })
         .eq('id', pageId)
+        .select()
+      console.log('Update result:', { updateError, updateData })
       if (updateError) throw updateError
       router.push(`/wiki/${newSlug}`)
     } catch (err: any) {
       setError(err.message)
+      console.error('Update error:', err)
     } finally {
       setSaving(false)
     }
