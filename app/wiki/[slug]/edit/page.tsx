@@ -23,6 +23,7 @@ export default function EditWikiPage() {
   const [pendingCategory, setPendingCategory] = useState<string | null>(null)
   const [showCategoryConfirm, setShowCategoryConfirm] = useState(false)
   const prevCategoryRef = useRef(category)
+  const [pageId, setPageId] = useState<string | null>(null)
 
   const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
 
@@ -37,6 +38,7 @@ export default function EditWikiPage() {
         setTitle(data.title)
         setContent(data.content)
         setCategory(data.category)
+        setPageId(data.id)
       }
       if (error) setError('Failed to load page')
     })()
@@ -48,6 +50,7 @@ export default function EditWikiPage() {
     setError('')
     try {
       const newSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      if (!pageId) throw new Error('Page not loaded')
       const { error: updateError } = await supabase
         .from('wiki_pages')
         .update({
@@ -57,7 +60,7 @@ export default function EditWikiPage() {
           category,
           updated_at: new Date().toISOString()
         })
-        .eq('slug', slug)
+        .eq('id', pageId)
       if (updateError) throw updateError
       router.push(`/wiki/${newSlug}`)
     } catch (err: any) {
