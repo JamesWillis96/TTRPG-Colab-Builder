@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { theme } from '../lib/theme'
 
 export default function Navbar() {
-  const { user, signOut } = useAuth()
+  const { user,profile, signOut } = useAuth()
   const router = useRouter()
 
   const handleSignOut = async () => {
@@ -15,7 +15,7 @@ export default function Navbar() {
 
   return (
     <nav style={{
-      padding: '1rem 2rem',
+      padding: '0.5rem 2rem',
       background: theme.colors.background.main,
       borderBottom: `1px solid ${theme.colors.border.primary}`,
       display: 'flex',
@@ -25,28 +25,31 @@ export default function Navbar() {
       top: 0,
       zIndex: 1000
     }}>
-        <div style={{ display: 'flex', gap:  '2rem', alignItems: 'center' }}>
-            <a href="/" style={{ fontSize:  '1.25rem', fontWeight: 'bold', color: theme.colors.primary }}>
+        <div style={{ display: 'flex', gap:'1.25rem', alignItems: 'center' }}>
+            <a href="/" style={{ fontSize:  '1.25rem', fontWeight: 'bold', color: theme.colors.primary, marginTop: '-0.25rem' }}>
                 🎲 TTRPG Colab Builder
             </a>
-            <a href="/sessions" style={{ color: theme.colors.text.secondary, fontSize: '1rem' }}>
+            <a href="/sessions" style={{ color: theme.colors.text.primary, fontSize: '1.1rem' }}>
                 Sessions
             </a>
-            <a href="/wiki" style={{ color: theme.colors.text.secondary, fontSize: '1rem' }}>
+            <a href="/wiki" style={{ color: theme.colors.text.primary, fontSize: '1.1rem' }}>
                 Wiki
             </a>
-            <a href="/map" style={{ color: theme.colors.text.primary, textDecoration: 'none' }}>
-            🗺️ Map
+            <a href="/map" style={{ color: theme.colors.text.primary, fontSize: '1rem' }}>
+                Map
             </a>
         </div>
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         {user ? (
           <>
-            <a href="/profile" style={{ color:  theme.colors.primary }}>Profile</a>
-            <span style={{ color: theme.colors.text.secondary }}>
-              Logged in as: <strong style={{ color: theme.colors.text.primary }}>{user.email}</strong>
+            <a href="/profile" style={{ color:  theme.colors.primary }}>
+            <span style={{ color: theme.colors.primary }}>
+              <strong  style={{ color: theme.colors.primary }}>
+                {profile?.username}
+              </strong>
             </span>
+            </a>
             <button
               onClick={handleSignOut}
               style={{

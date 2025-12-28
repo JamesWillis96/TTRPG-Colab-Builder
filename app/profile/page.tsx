@@ -32,7 +32,7 @@ export default function ProfilePage() {
 
       setUsername(data.username)
       setRole(data.role)
-      setAboutMe(data.aboutMe || '')
+      setAboutMe(data.aboutme || '')
     } catch (error: any) {
       console.error('Error loading profile:', error.message)
     } finally {
@@ -48,7 +48,7 @@ export default function ProfilePage() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ username, role, aboutMe })
+        .update({ username, role, aboutme: aboutMe })
         .eq('id', user!.id)
 
       if (error) throw error
@@ -70,13 +70,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <main style={styles.card}>
+    <main style={{ ...styles.card, maxWidth: '800px', margin: '0 auto', marginTop: '2rem', borderTop: `4px solid ${theme.colors.primary}` }}>
       <h1 style={styles.heading1}>Your Profile</h1>
 
       <div style={{ 
         marginBottom: '2rem', 
         padding: '1rem', 
-        background: theme.colors.background.secondary, 
+        background: theme.colors.background.tertiary, 
         borderRadius: theme.borderRadius,
         border: `1px solid ${theme.colors.border.secondary}`
       }}>
@@ -84,7 +84,7 @@ export default function ProfilePage() {
           <strong style={{ color: theme.colors.text.primary }}>Email:</strong> {user.email}
         </p>
         <p style={{ color: theme.colors.text.secondary }}>
-          <strong style={{ color: theme.colors.text.primary }}>User ID:</strong> {user.id.substring(0, 8)}...
+          <strong style={{ color: theme.colors.text.primary }}>User ID:</strong> {user.id}
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export default function ProfilePage() {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            style={styles.select}
+            style={{ ...styles.select, background: theme.colors.background.input }}
           >
             <option value="player">Player</option>
             <option value="gm">Game Master</option>

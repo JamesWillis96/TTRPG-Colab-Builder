@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { styles } from '../../lib/theme'
+import { styles, theme } from '../../lib/theme'
+import confetti from 'canvas-confetti'
 
 // Constants
 const SESSION_TABLE_NAMES = ['session_players', 'session_signups']
@@ -62,6 +63,12 @@ export default function SessionsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [joining, setJoining] = useState<Record<string, boolean>>({})
+  // confetti controls
+  const [particleCount, setParticleCount] = useState(30)
+  const [spread, setSpread] = useState(360)
+  const [angle, setAngle] = useState(90)
+  const [startVelocity, setStartVelocity] = useState(100)
+  const [decay, setDecay] = useState(.8)
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -114,7 +121,7 @@ export default function SessionsPage() {
     }
   }
 
-  const joinSession = async (sessionId: string) => {
+  const joinSession = async (sessionId: string, x: number, y: number) => {
     if (!user) return
     setJoining(s => ({ ...s, [sessionId]: true }))
     try {
@@ -133,7 +140,22 @@ export default function SessionsPage() {
         }
         throw result.error
       }
-      await load()
+      // Optimistic update: add user to players
+      setPlayersBySession(prev => ({
+        ...prev,
+        [sessionId]: [...(prev[sessionId] || []), { session_id: sessionId, player_id: user.id }]
+      }))
+      // Trigger confetti after button changes to "Leave" (with a small delay to ensure render)
+      setTimeout(() => {
+        confetti({
+          particleCount,
+          spread,
+          angle,
+          startVelocity,
+          decay,
+          origin: { x, y }
+        })
+      }, 100)
     } catch (e: any) {
       console.error(e)
       alert('Failed to join: ' + (e.message || e))
@@ -153,7 +175,11 @@ export default function SessionsPage() {
         alert('Leaving is not enabled on this instance (no signup table).')
         return
       }
-      await load()
+      // Optimistic update: remove user from players
+      setPlayersBySession(prev => ({
+        ...prev,
+        [sessionId]: (prev[sessionId] || []).filter(p => p.player_id !== user.id)
+      }))
     } catch (e: any) {
       console.error(e)
       alert('Failed to leave: ' + (e.message || e))
@@ -162,33 +188,33 @@ export default function SessionsPage() {
     }
   }
 
-// Helper functions
-const tryTableOperation = async (operation: (tableName: string) => Promise<any>) => {
-  for (const tableName of SESSION_TABLE_NAMES) {
-    try {
-      const result = await operation(tableName)
-      if (!result.error) return result
-      const msg = result.error.message || ''
-      const isMissingTable = result.error.code === 'PGRST205' ||
-                            msg.includes('Could not find the table') ||
-                            msg.includes('relation')
-      if (!isMissingTable) throw result.error
-    } catch (error: any) {
-      const msg = error.message || ''
-      const isMissingTable = error.code === 'PGRST205' ||
-                            msg.includes('Could not find the table') ||
-                            msg.includes('relation')
-      if (!isMissingTable) throw error
+  // Helper functions
+  const tryTableOperation = async (operation: (tableName: string) => Promise<any>) => {
+    for (const tableName of SESSION_TABLE_NAMES) {
+      try {
+        const result = await operation(tableName)
+        if (!result.error) return result
+        const msg = result.error.message || ''
+        const isMissingTable = result.error.code === 'PGRST205' ||
+                              msg.includes('Could not find the table') ||
+                              msg.includes('relation')
+        if (!isMissingTable) throw result.error
+      } catch (error: any) {
+        const msg = error.message || ''
+        const isMissingTable = error.code === 'PGRST205' ||
+                              msg.includes('Could not find the table') ||
+                              msg.includes('relation')
+        if (!isMissingTable) throw error
+      }
     }
+    return null
   }
-  return null
-}
 
-const formatDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 
-const formatTime = (d: string) =>
-  new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const formatTime = (d: string) =>
+    new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
   if (loading || authLoading) return <div style={{ padding: 24 }}>Loading...</div>
   if (!user) return null
@@ -220,7 +246,7 @@ const formatTime = (d: string) =>
             const joined = players.some(p => p.player_id === user.id)
             const gmName = session.gm_id ? (profilesMap[session.gm_id]?.username || 'Unknown') : 'Unassigned'
             return (
-              <div key={session.id} style={cardStyle}>
+              <div key={session.id} style={{ ...cardStyle, border: joined ? `2px solid ${theme.colors.primary}` : theme.colors.border.primary }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <div>
                     <div style={styles.section}>
@@ -237,14 +263,15 @@ const formatTime = (d: string) =>
                       <div style={styles.gameSystemItem}>
                         {session.game_system}
                       </div>
-                      <div style={styles.detailItem}>
-                        GM: {gmName}
-                      </div>
+                      
                       <div style={styles.detailItem}>
                         {formatDate(session.date_time)}
                       </div>
                       <div style={styles.detailItem}>
                         {formatTime(session.date_time)}
+                      </div>
+                      <div style={styles.detailItem}>
+                        GM: {gmName}
                       </div>
                       <div style={styles.detailItem}>
                         {players.length} / {session.max_players} players
@@ -262,7 +289,12 @@ const formatTime = (d: string) =>
                   </button>
                   {!joined ? (
                     <button
-                      onClick={() => joinSession(session.id)}
+                      onClick={(e) => {
+                        const rect = (e.target as HTMLElement).getBoundingClientRect()
+                        const x = (rect.left + rect.width / 2) / window.innerWidth
+                        const y = (rect.top + rect.height / 2) / window.innerHeight
+                        joinSession(session.id, x, y)
+                      }}
                       disabled={!!joining[session.id]}
                       style={styles.button.primary}
                     >

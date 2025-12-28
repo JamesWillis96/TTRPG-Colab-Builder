@@ -13,7 +13,8 @@ export const theme = {
       tertiary: '#D9C5A3',  // Distinct depth layer
       input: '#FFFFFF',     // Clean white inputs feel more "app-like"
       error: '#FDECEA',
-      success: '#F0F4EF'
+      success: '#F0F4EF',
+      highlight: 'rgba(255, 188, 112, 1)'
     },
     text: {
       primary: '#1A1612',   // Near black-brown for extreme readability
