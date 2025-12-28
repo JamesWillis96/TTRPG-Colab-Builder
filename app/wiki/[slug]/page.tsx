@@ -237,10 +237,13 @@ export default function WikiPageView() {
 
       {/* Page Content */}
       <div style={{
-        background: '#f9f7f3', // off-white background
-        border: `1px solid #ddd`,
-        borderRadius: theme.borderRadius,
-        padding: '2rem'
+        ...styles.preview,
+        background: '#f9f7f3',
+        color: '#222',
+        borderRadius: '6px',
+        border: '1px solid #ddd',
+        padding: '1.5rem',
+        minHeight: '400px',
       }}>
         <div className="markdown-content">
           <style>{`
@@ -261,10 +264,39 @@ export default function WikiPageView() {
               color: ${theme.colors.secondary};
               font-weight: 700;
             }
+            .markdown-content hr {
+              border: none;
+              border-top: 2px solid #e0c9a6;
+              margin: 1.5rem 0;
+            }
+            .markdown-content code {
+              background: #f4efe6;
+              color: #7c4a03;
+              border-radius: 4px;
+              padding: 2px 6px;
+              font-size: 0.98em;
+            }
+            .markdown-content pre code {
+              background: #f4efe6;
+              color: #7c4a03;
+              border-radius: 6px;
+              padding: 1em;
+              display: block;
+              font-size: 1em;
+            }
+            .markdown-content ul, .markdown-content ol {
+              margin-left: 1.5em;
+            }
+            .markdown-content blockquote {
+              border-left: 4px solid #e0c9a6;
+              background: #f9f7f3;
+              color: #7c4a03;
+              margin: 1em 0;
+              padding: 0.5em 1em;
+              font-style: italic;
+            }
           `}</style>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {page.content}
-          </ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{page.content}</ReactMarkdown>
         </div>
       </div>
     </main>
