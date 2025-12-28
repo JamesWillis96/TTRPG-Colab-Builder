@@ -29,9 +29,9 @@ export default function WikiHomePage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [sortBy, setSortBy] = useState('created')
 
-  const categories = ['all', 'npc', 'location', 'lore', 'item', 'faction', 'general']
+  const categories = ['all', 'npc', 'location', 'lore', 'item', 'faction', 'player character']
   const sortOptions = [
-    { value: 'created', label: 'Recently Created' },
+    { value: 'created', label: 'Most Recent' },
     { value: 'title', label: 'Title A-Z' },
     { value: 'title-desc', label: 'Title Z-A' },
     { value: 'category', label: 'Category' },
@@ -129,12 +129,12 @@ export default function WikiHomePage() {
 
   const getCategoryColor = (category: string) => {
     const colors:  Record<string, string> = {
-        npc: theme.colors.primary, // Blood red for NPCs
+      npc: theme.colors.secondary, // Blood red for NPCs
       location: theme.colors.secondary, // Forest green for locations
-      lore: '#6B5B47', // Tertiary brown for lore
-      item: '#857564', // Muted for items
-      faction: '#4A3F35', // Secondary text for factions
-      general: theme.colors.text.secondary
+      lore: theme.colors.secondary, // Tertiary brown for lore
+      item: theme.colors.secondary, // Muted for items
+      faction: theme.colors.secondary, // Secondary text for factions
+      'player character': theme.colors.secondary
     }
     return colors[category] || theme.colors.text.secondary
   }
@@ -146,6 +146,7 @@ export default function WikiHomePage() {
       lore: '📜',
       item: '⚔️',
       faction:  '🛡️',
+      'player character': '🎭',
       general: '📄'
     }
     return icons[category] || '📄'
@@ -179,7 +180,7 @@ export default function WikiHomePage() {
 
       {/* Search, Filters, Sort and Stats */}
       <div style={{ 
-        marginBottom: '2rem',
+        marginBottom: '1rem',
         display: 'flex',
         gap: '1rem',
         alignItems: 'center'
@@ -191,7 +192,9 @@ export default function WikiHomePage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{
             flex: 1,
-            minWidth: '200px',
+            minWidth: '150px',
+            maxHeight: '36px',
+            textAlign: 'left',
             ...styles.input
           }}
         />
@@ -202,6 +205,10 @@ export default function WikiHomePage() {
           style={{
             ...styles.select,
             minWidth: '120px',
+            maxHeight: '36px',
+            paddingTop: '7px',
+            paddingLeft: '8px',
+            textAlign: 'left',
             width: '120px'
           }}
         >
@@ -218,7 +225,11 @@ export default function WikiHomePage() {
           style={{
             ...styles.select,
             minWidth: '120px',
-            width: '120px'
+            maxHeight: '36px',
+            paddingTop: '7px',
+            paddingLeft: '8px',
+            width: '120px',
+            textAlign: 'left',
           }}
         >
           {sortOptions.map(option => (
@@ -227,22 +238,13 @@ export default function WikiHomePage() {
             </option>
           ))}
         </select>
-
-        <div style={{ 
-          color: theme.colors.text.secondary,
-          fontSize: '0.875rem',
-          whiteSpace: 'nowrap',
-          minWidth: 'fit-content'
-        }}>
-          {filteredPages.length} of {pages.length} pages
-        </div>
       </div>
 
       {/* Pages List */}
       {filteredPages.length === 0 ? (
         <div style={{ 
           textAlign: 'center', 
-          padding: '3rem', 
+          padding: '2rem', 
           background: theme.colors.background.success, 
           borderRadius: theme.borderRadius,
           border: `1px solid ${theme.colors.border.primary}`
@@ -285,7 +287,8 @@ export default function WikiHomePage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{ 
-                  fontSize: '2rem',
+                  fontSize: '1.1rem',
+                  width: '3rem',
                   lineHeight: 1,
                   display: 'flex',
                   alignItems: 'center',
@@ -294,19 +297,23 @@ export default function WikiHomePage() {
                   {getCategoryIcon(page.category)}
                 </div>
                 
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <h2 style={{ 
-                    fontSize: '1.5rem', 
-                    marginBottom: '0.5rem',
-                    color: theme.colors.text.primary
+                    fontSize: '1rem',
+                    marginTop: '0.25rem', 
+                    marginLeft: '-1rem',
+                    marginBottom: '0.15rem',
+                    color: theme.colors.primary
                   }}>
                     {page.title}
                   </h2>
                   
                   <div style={{ 
                     display:  'flex', 
-                    gap: '1. 5rem', 
+                    gap: '0.05rem', 
                     fontSize: '0.875rem',
+                    marginLeft: '-1rem',
+                    marginBottom: '0.25rem',
                     color: theme.colors.text.secondary,
                     flexWrap: 'wrap'
                   }}>
