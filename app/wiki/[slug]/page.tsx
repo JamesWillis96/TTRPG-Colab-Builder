@@ -31,12 +31,27 @@ export default function WikiPageView() {
   const [page, setPage] = useState<WikiPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [poi, setPoi] = useState(null)
 
   useEffect(() => {
     if (slug) {
       loadPage()
     }
   }, [slug, user])
+
+  useEffect(() => {
+    if (page?.id) {
+      // Fetch POI for this wiki page
+      supabase
+        .from('map_pois')
+        .select('*')
+        .eq('wiki_page_id', page.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setPoi(data)
+        })
+    }
+  }, [page?.id])
 
   const loadPage = async () => {
     setLoading(true)
@@ -160,7 +175,8 @@ export default function WikiPageView() {
         border: `1px solid ${theme.colors.border.primary}`,
         borderRadius: theme.borderRadius,
         padding: '2rem',
-        marginBottom: '2rem'
+        marginBottom: '2rem',
+        position: 'relative', // For button positioning
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
           <div style={{ flex: 1 }}>
@@ -231,6 +247,34 @@ export default function WikiPageView() {
                 Delete
               </button>
             </div>
+          )}
+
+          {/* Go to Map Button */}
+          {poi && (
+            <button
+              style={{
+                position: 'absolute',
+                top: '2rem',
+                right: '2rem',
+                background: theme.colors.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: theme.borderRadius,
+                padding: '0.75rem 1.5rem',
+                fontWeight: 'bold',
+                fontSize: '1rem',
+                boxShadow: '0 2px 8px #0002',
+                cursor: 'pointer',
+                zIndex: 20,
+              }}
+              title={`Go to map location: ${poi.title}`}
+              onClick={() => {
+                // Navigate to map with POI id in query
+                router.push(`/map?poi=${poi.id}`)
+              }}
+            >
+              🗺️ Go to Map
+            </button>
           )}
         </div>
       </div>
