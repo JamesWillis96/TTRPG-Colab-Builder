@@ -40,15 +40,28 @@ export default function Navbar() {
             </a>
         </div>
 
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         {user ? (
           <>
-            <a href="/profile" style={{ color:  theme.colors.primary }}>
-            <span style={{ color: theme.colors.primary }}>
-              <strong  style={{ color: theme.colors.primary }}>
-                {profile?.username}
-              </strong>
-            </span>
+            <a
+              href="/profile"
+              style={{
+                color: theme.colors.text.secondary,  // Changed from primary to secondary
+                textDecoration: 'none',
+                fontSize: '1rem',
+                fontWeight: 'bold',
+                transition: 'color 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = theme.colors.primary
+                e.currentTarget.style.textDecoration = 'none'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = theme.colors.text.secondary
+                e.currentTarget.style.textDecoration = 'none'
+              }}
+            >
+              {profile?.username}
             </a>
             <button
               onClick={handleSignOut}
@@ -58,7 +71,7 @@ export default function Navbar() {
                 border: `1px solid ${theme.colors.border.secondary}`,
                 borderRadius: theme.borderRadius,
                 color: theme.colors.text.primary,
-                cursor:  'pointer'
+                cursor: 'pointer'
               }}
             >
               Logout

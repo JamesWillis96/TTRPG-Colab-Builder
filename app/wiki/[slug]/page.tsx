@@ -122,14 +122,15 @@ export default function WikiPageView() {
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      npc: theme.colors.primary, // Blood red for NPCs
-      location: theme.colors.secondary, // Forest green for locations
-      lore: '#6B5B47', // Tertiary brown for lore
-      item: '#857564', // Muted for items
-      faction: '#4A3F35', // Secondary text for factions
-      general: theme.colors.text.secondary
+      npc: theme.colors.secondary,
+      location: theme.colors.secondary,
+      lore: theme.colors.secondary,
+      item: theme.colors.secondary,
+      faction: theme.colors.secondary,
+      'player character': theme.colors.secondary,
+      general: theme.colors.secondary
     }
-    return colors[category] || theme.colors.text.secondary
+    return colors[category] || theme.colors.secondary
   }
 
   const getCategoryIcon = (category: string) => {
@@ -139,7 +140,7 @@ export default function WikiPageView() {
       lore: '📜',
       item: '⚔️',
       faction: '🛡️',
-      general: '📄'
+      'player character': '🎭'  // Changed from general to player character
     }
     return icons[category] || '📄'
   }
@@ -162,11 +163,20 @@ export default function WikiPageView() {
 
   return (
     <main style={styles.container}>
-      {/* Back Link */}
-      <div style={{ marginBottom: '2rem' }}>
+      {/* Back Link and Go to Map */}
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <a href="/wiki" style={{ color: theme.colors.primary, textDecoration: 'none' }}>
           ← Back to Wiki
         </a>
+        {poi && (
+          <a 
+            href={`/map?poi=${poi.id}`} 
+            style={{ color: theme.colors.primary, textDecoration: 'none' }}
+            title={`Go to map location: ${poi.title}`}
+          >
+            Go to Map →
+          </a>
+        )}
       </div>
 
       {/* Page Header */}
@@ -174,17 +184,18 @@ export default function WikiPageView() {
         background: theme.colors.background.secondary,
         border: `1px solid ${theme.colors.border.primary}`,
         borderRadius: theme.borderRadius,
-        padding: '2rem',
-        marginBottom: '2rem',
+        padding: '0.5rem',
+        paddingLeft: '1rem',
+        marginBottom: '.5rem',
         position: 'relative', // For button positioning
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0rem' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '2rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0rem' }}>
+              <span style={{ fontSize: '1.75rem' }}>
                 {getCategoryIcon(page.category)}
               </span>
-              <h1 style={styles.heading1}>
+              <h1 style={{...styles.heading1, marginTop: '2rem', color: theme.colors.primary}}>
                 {page.title}
               </h1>
             </div>
@@ -203,7 +214,7 @@ export default function WikiPageView() {
                 color: getCategoryColor(page.category),
                 fontWeight: 'bold',
                 textTransform: 'capitalize',
-                borderRadius: '4px'
+                borderRadius: theme.borderRadius
               }}>
                 {page.category}
               </span>
@@ -233,7 +244,14 @@ export default function WikiPageView() {
 
           {/* Actions */}
           {isAuthorized && (
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between', 
+              marginTop: '0.25rem',
+              marginBottom: '0rem',
+              marginRight: '.75rem',
+              gap: '0.75rem' }}>
               <button
                 onClick={() => router.push(`/wiki/${slug}/edit`)}
                 style={styles.buttonPrimary}
@@ -248,34 +266,6 @@ export default function WikiPageView() {
               </button>
             </div>
           )}
-
-          {/* Go to Map Button */}
-          {poi && (
-            <button
-              style={{
-                position: 'absolute',
-                top: '2rem',
-                right: '2rem',
-                background: theme.colors.primary,
-                color: '#fff',
-                border: 'none',
-                borderRadius: theme.borderRadius,
-                padding: '0.75rem 1.5rem',
-                fontWeight: 'bold',
-                fontSize: '1rem',
-                boxShadow: '0 2px 8px #0002',
-                cursor: 'pointer',
-                zIndex: 20,
-              }}
-              title={`Go to map location: ${poi.title}`}
-              onClick={() => {
-                // Navigate to map with POI id in query
-                router.push(`/map?poi=${poi.id}`)
-              }}
-            >
-              🗺️ Go to Map
-            </button>
-          )}
         </div>
       </div>
 
@@ -287,6 +277,7 @@ export default function WikiPageView() {
         borderRadius: '6px',
         border: '1px solid #ddd',
         padding: '1.5rem',
+        paddingTop: '1rem',
         minHeight: '400px',
       }}>
         <div className="markdown-content">
@@ -301,12 +292,15 @@ export default function WikiPageView() {
             }
             .markdown-content h1 {
               color: ${theme.colors.primary};
-              font-weight: 800;
+              font-weight: 700;
               letter-spacing: 0.5px;
             }
             .markdown-content strong {
-              color: ${theme.colors.secondary};
+              color: ${theme.colors.primary};  /* Bold text color */
               font-weight: 700;
+            }
+            .markdown-content strong em, em strong {
+              color: ${theme.colors.secondary} !important;  /* Bold italic text color (different) */
             }
             .markdown-content hr {
               border: none;

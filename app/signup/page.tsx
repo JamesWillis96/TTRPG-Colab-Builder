@@ -7,16 +7,17 @@ import { styles, theme } from '../../lib/theme'
 
 export default function SignupPage() {
   const router = useRouter()
-  const { user, signUp, loading:  authLoading } = useAuth()
+  const { user, signUp, loading: authLoading } = useAuth()
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [signedUp, setSignedUp] = useState(false)  // Add state for signup success
 
   useEffect(() => {
-    if (! authLoading && user) {
+    if (!authLoading && user) {
       router.push('/')
     }
   }, [user, authLoading, router])
@@ -28,8 +29,9 @@ export default function SignupPage() {
 
     try {
       await signUp(email, password, username)
-      router.push('/')
-    } catch (err:  any) {
+      setSignedUp(true)  // Set signed up to true on success
+      // Do not redirect here; wait for email confirmation
+    } catch (err: any) {
       setError(err.message || 'Failed to create account')
     } finally {
       setLoading(false)
@@ -54,10 +56,42 @@ export default function SignupPage() {
     return null
   }
 
+  if (signedUp) {
+    return (
+      <main style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 'calc(100vh - 80px)',
+        padding: '2rem'
+      }}>
+        <div style={{
+          width: '100%',
+          maxWidth: '400px',
+          background: theme.colors.background.secondary,
+          border: `1px solid ${theme.colors.border.primary}`,
+          borderRadius: theme.borderRadius,
+          padding: '2rem',
+          textAlign: 'center'
+        }}>
+          <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: theme.colors.text.primary }}>
+            Check Your Email
+          </h1>
+          <p style={{ color: theme.colors.text.secondary, marginBottom: '1.5rem' }}>
+            We've sent a confirmation link to <strong>{email}</strong>. Click the link to activate your account.
+          </p>
+          <p style={{ color: theme.colors.text.secondary }}>
+            Already confirmed? <a href="/login" style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 'bold' }}>Log In</a>
+          </p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main style={{
       display: 'flex',
-      justifyContent:  'center',
+      justifyContent: 'center',
       alignItems: 'center',
       minHeight: 'calc(100vh - 80px)',
       padding: '2rem'
@@ -70,7 +104,7 @@ export default function SignupPage() {
         borderRadius: theme.borderRadius,
         padding: '2rem'
       }}>
-        <h1 style={{ fontSize: '2rem', marginBottom:  '2rem', textAlign: 'center', color: theme.colors.text.primary }}>
+        <h1 style={{ fontSize: '2rem', marginBottom: '2rem', textAlign: 'center', color: theme.colors.text.primary }}>
           Create Account
         </h1>
 
@@ -87,7 +121,7 @@ export default function SignupPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection:  'column', gap: '1.5rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
             <label style={styles.label}>
               Username
@@ -136,7 +170,7 @@ export default function SignupPage() {
               background: loading ? theme.colors.background.tertiary : theme.colors.primary,
               color: loading ? theme.colors.text.muted : '#2F1B14',
               border: 'none',
-              borderRadius:  theme.borderRadius,
+              borderRadius: theme.borderRadius,
               fontSize: '1rem',
               fontWeight: 'bold',
               cursor: loading ? 'not-allowed' : 'pointer'
@@ -148,7 +182,7 @@ export default function SignupPage() {
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', color: theme.colors.text.secondary }}>
           Already have an account? {' '}
-          <a href="/login" style={{ color:  theme.colors.primary, textDecoration: 'none', fontWeight: 'bold' }}>
+          <a href="/login" style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 'bold' }}>
             Log In
           </a>
         </p>

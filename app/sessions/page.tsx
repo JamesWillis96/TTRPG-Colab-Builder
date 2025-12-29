@@ -37,9 +37,9 @@ const cardStyle = {
 
 const buttonContainerStyle = {
   display: 'flex',
-  gap: '0.5rem',
+  gap: '0.25rem',
   marginTop: 'auto',
-  paddingTop: '1rem',
+  paddingTop: '0.5rem',
   justifyContent: 'space-between'
 }
 
@@ -240,7 +240,7 @@ export default function SessionsPage() {
           <p style={{ fontSize: '1.25rem', color: '#857564' }}>No sessions scheduled yet</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '2rem', rowGap: '0.8rem' }}>
           {sessions.map(session => {
             const players = playersBySession[session.id] || []
             const joined = players.some(p => p.player_id === user.id)
@@ -258,22 +258,22 @@ export default function SessionsPage() {
                     )}
                   </div>
 
-                  <div style={{ marginTop: 'auto' }}>
+                  <div style={{ marginTop: 'auto', marginBottom: '1rem' }}>
                     <div style={styles.sessionDetails}>
-                      <div style={styles.gameSystemItem}>
+                      <div style={{...styles.gameSystemItem, padding: '0rem', marginTop: '0rem'}}> 
                         {session.game_system}
                       </div>
                       
-                      <div style={styles.detailItem}>
+                      <div style={{...styles.detailItem, marginTop: '0rem'}}>
                         {formatDate(session.date_time)}
                       </div>
-                      <div style={styles.detailItem}>
+                      <div style={{...styles.detailItem, marginTop: '0rem'}}>
                         {formatTime(session.date_time)}
                       </div>
-                      <div style={styles.detailItem}>
+                      <div style={{...styles.detailItem, marginTop: '0rem'}}>
                         GM: {gmName}
-                      </div>
-                      <div style={styles.detailItem}>
+                      </div> 
+                      <div style={{...styles.detailItem, marginTop: '0rem'}}>
                         {players.length} / {session.max_players} players
                       </div>
                     </div>

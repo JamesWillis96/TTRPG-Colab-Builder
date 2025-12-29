@@ -24,11 +24,11 @@ type Profile = {
 }
 
 type Signup = {
-  id:  string
+  id: string
   session_id: string
-  player_id: string
+  player_id: string 
   signed_up_at: string
-  profile?:  Profile
+  profile?: Profile
 }
 
 export default function SessionDetailPage() {
@@ -53,7 +53,7 @@ export default function SessionDetailPage() {
     
     try {
       // 1. Load session details
-      const { data: sessionData, error:  sessionError } = await supabase
+      const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .select('*')
         .eq('id', sessionId)
@@ -66,21 +66,21 @@ export default function SessionDetailPage() {
 
       // 2. Load signups
       const { data: signupsData, error: signupsError } = await supabase
-        .from('session_signups')
+        .from('session_players')
         .select('*')
         .eq('session_id', sessionId)
-        .order('signed_up_at', { ascending: true })
+        .order('created_at', { ascending: true })
 
       if (signupsError) throw signupsError
 
-      if (! signupsData || signupsData.length === 0) {
+      if (!signupsData || signupsData.length === 0) {
         setSignups([])
         return
       }
 
       // 3. Load profiles for all signed up players
-      const playerIds = signupsData.map(s => s.player_id)
-      const { data: profilesData, error:  profilesError } = await supabase
+      const playerIds = signupsData.map(s => s.player_id)  // Changed from user_id to player_id
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .in('id', playerIds)
@@ -88,29 +88,29 @@ export default function SessionDetailPage() {
       if (profilesError) throw profilesError
 
       // 4. Combine signups with profiles
-      const signupsWithProfiles:  Signup[] = signupsData.map(signup => ({
+      const signupsWithProfiles: Signup[] = signupsData.map(signup => ({
         id: signup.id,
         session_id: signup.session_id,
-        player_id: signup.player_id,
-        signed_up_at: signup.signed_up_at,
-        profile: profilesData?.find(p => p.id === signup.player_id)
+        player_id: signup.player_id,  // Changed from user_id to player_id
+        signed_up_at: signup.created_at,
+        profile: profilesData?.find(p => p.id === signup.player_id)  // Changed from user_id to player_id
       }))
 
       setSignups(signupsWithProfiles)
 
-    } catch (error:  any) {
-      console.error('Error loading session:', error. message)
+    } catch (error: any) {
+      console.error('Error loading session:', error.message)
     } finally {
       setLoading(false)
     }
   }
 
   const handleRemovePlayer = async (signupId: string) => {
-    if (! confirm('Are you sure you want to remove this player?')) return
+    if (!confirm('Are you sure you want to remove this player?')) return
 
     try {
       const { error } = await supabase
-        .from('session_signups')
+        .from('session_players')
         .delete()
         .eq('id', signupId)
 
@@ -122,22 +122,22 @@ export default function SessionDetailPage() {
   }
 
   const handleDeleteSession = async () => {
-    if (!confirm('Are you sure you want to delete this session?  This cannot be undone.')) return
+    if (!confirm('Are you sure you want to delete this session? This cannot be undone.')) return
 
     try {
       const { error } = await supabase
-        . from('sessions')
+        .from('sessions')
         .delete()
         .eq('id', sessionId)
 
       if (error) throw error
       router.push('/sessions')
     } catch (error: any) {
-      alert('Error deleting session:  ' + error.message)
+      alert('Error deleting session: ' + error.message)
     }
   }
 
-  const handleStatusChange = async (newStatus:  string) => {
+  const handleStatusChange = async (newStatus: string) => {
     try {
       const { error } = await supabase
         .from('sessions')
@@ -152,12 +152,12 @@ export default function SessionDetailPage() {
   }
 
   if (loading) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: theme.colors.text.primary }}>Loading... </div>
+    return <div style={{ padding: '2rem', textAlign: 'center', color: theme.colors.text.primary }}>Loading...</div>
   }
 
   if (!session) {
     return (
-      <div style={{ padding:  '2rem', textAlign: 'center' }}>
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
         <p style={{ color: theme.colors.text.primary }}>Session not found</p>
         <a href="/sessions" style={{ color: theme.colors.primary }}>← Back to Sessions</a>
       </div>
@@ -165,149 +165,122 @@ export default function SessionDetailPage() {
   }
 
   return (
-    <main style={styles.container}>
-      <div style={styles.section}>
-        <a href="/sessions" style={{ color: theme.colors.primary, textDecoration: 'none' }}>
-          ← Back to Sessions
-        </a>
+   <main style={styles.container}>
+ <div style={styles.section}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <a href="/sessions" style={{ color: theme.colors.primary, textDecoration: 'none' }}>
+            ← Back to Sessions
+          </a>
+        </div>
       </div>
-
-      <div style={styles.card}>
-        {/* Header */}
-        <div style={styles.section}>
-          <div style={{...styles.flexBetween, marginBottom: '1rem'}}>
-            <h1 style={styles.heading1}>{session.title}</h1>
-            {isGM && (
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={() => router.push(`/sessions/${sessionId}/edit`)}
-                  style={styles.button.primary}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={handleDeleteSession}
-                  style={styles.button.danger}
-                >
-                  Delete
-                </button>
-              </div>
-            )}
-          </div>
-
-          {session.description && (
-            <p style={{ color: theme.colors.text.secondary, marginBottom: '1.5rem' }}>{session.description}</p>
-          )}
-
-          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-            <div>
-              <span style={{ color: theme.colors.text.muted }}>📅 </span>
-              <span style={{ color: theme.colors.text.primary }}>
-                {new Date(session.date_time).toLocaleDateString()}
-              </span>
-            </div>
-            <div>
-              <span style={{ color: theme.colors.text.muted }}>👥 </span>
-              <span style={{ color: theme.colors.text.primary }}>
-                {signups.length} / {session.max_players} players
-              </span>
-            </div>
-            <div>
-              <span style={{ color: theme.colors.text.muted }}>📊 </span>
-              <span style={{ 
-                color: session.status === 'open' ? theme.colors.success : theme.colors.text.secondary,
-                textTransform: 'capitalize'
-              }}>
-                {session.status}
-              </span>
-            </div>
-          </div>
-
+       {/* Session Details */}
+      <div style={styles.section}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h1 style={styles.heading1}>{session.title}</h1>
+          
           {isGM && (
-            <div style={{ marginTop:  '1rem' }}>
-              <label style={styles.label}>
-                Change Status: 
-              </label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <select
                 value={session.status}
-                onChange={(e) => handleStatusChange(e.target. value)}
-                style={styles.select}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                style={{ ...styles.select, fontSize: '1rem', padding: '.75rem 0.5rem' }}
               >
                 <option value="open">Open</option>
                 <option value="full">Full</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
+              <button
+                onClick={() => router.push(`/sessions/${sessionId}/edit`)}
+                style={styles.button.primary}
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleDeleteSession}
+                style={styles.button.danger}
+              >
+                Delete
+              </button>
             </div>
           )}
         </div>
 
-        {/* Divider */}
-        <div style={{ height: '1px', background: theme.colors.border.primary, margin: '2rem 0' }}></div>
-
-        {/* Players List */}
-        <div style={styles.section}>
-          <h2 style={styles.heading2}>
-            Signed Up Players ({signups.length})
-          </h2>
-
-          {signups.length === 0 ? (
-            <p style={{ color: theme.colors.text.muted, fontStyle: 'italic' }}>No players signed up yet. </p>
-          ) : (
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
-              {signups.map((signup, index) => (
-                <div
-                  key={signup.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding:  '1rem',
-                    background: theme.colors.background.tertiary,
-                    border: `1px solid ${theme.colors.border.secondary}`,
-                    borderRadius: theme.borderRadius
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ 
-                      color: theme.colors.text.muted, 
-                      fontSize: '1. 25rem',
-                      fontWeight: 'bold',
-                      minWidth: '2rem'
-                    }}>
-                      {index + 1}. 
-                    </span>
-                    <div>
-                      <div style={{ fontWeight: 'bold', color: theme.colors.text.primary }}>
-                        {signup.profile?.username || 'Unknown User'}
-                      </div>
-                      <div style={{ fontSize:  '0.875rem', color: theme.colors.text.secondary }}>
-                        Signed up:  {new Date(signup.signed_up_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {isGM && (
-                    <button
-                      onClick={() => handleRemovePlayer(signup.id)}
-                      style={{
-                        padding: '0.25rem 0.75rem',
-                        background: 'transparent',
-                        color: theme.colors.danger,
-                        border: `1px solid ${theme.colors.danger}`,
-                        borderRadius: theme.borderRadius,
-                        cursor:  'pointer',
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <div>
+            <span style={{ color: theme.colors.text.muted }}>📅 </span>
+            <span style={{ color: theme.colors.text.primary }}>
+              {new Date(session.date_time).toLocaleDateString()}
+            </span>
+          </div>
+          <div>
+            <span style={{ color: theme.colors.text.muted }}>👥 </span>
+            <span style={{ color: theme.colors.text.primary }}>
+              {signups.length} / {session.max_players} players
+            </span>
+          </div>
+          <div>
+            <span style={{ color: theme.colors.text.muted }}>📊 </span>
+            <span style={{ 
+              color: session.status === 'open' ? theme.colors.success : theme.colors.text.secondary,
+              textTransform: 'capitalize'
+            }}>
+              {session.status}
+            </span>
+          </div>
         </div>
+        
+        {session.description && (
+          <p style={{ color: theme.colors.text.secondary, marginBottom: '1rem' }}>{session.description}</p>
+        )}
+      </div>
+
+      {/* Players List */}
+      <div style={styles.section}>
+        <h2 style={styles.heading2}>
+          Signed Up Players ({signups.length})
+        </h2>
+
+        {signups.length === 0 ? (
+          <p style={{ color: theme.colors.text.muted, fontStyle: 'italic' }}>No players signed up yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {signups.map(signup => (
+              <div
+                key={signup.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.5rem',
+                  background: theme.colors.background.tertiary,
+                  borderRadius: theme.borderRadius
+                }}
+              >
+                <span style={{ color: theme.colors.text.primary }}>
+                  {signup.profile?.username || 'Unknown User'}
+                </span>
+
+                {isGM && (
+                  <button
+                    onClick={() => handleRemovePlayer(signup.id)}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      background: 'transparent',
+                      color: theme.colors.danger,
+                      border: `1px solid ${theme.colors.danger}`,
+                      borderRadius: theme.borderRadius,
+                      cursor: 'pointer',
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   )
