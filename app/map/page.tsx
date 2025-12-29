@@ -1,5 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
+export const runtime = 'edge'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
