@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { supabase } from '../../../lib/supabase'
-import { theme, styles } from '../../../lib/theme'
 
 export default function CreateSessionPage() {
   const router = useRouter()
   const { user, profile, loading:  authLoading } = useAuth()
+  const { theme, styles } = useTheme()
   
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')

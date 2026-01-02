@@ -2,16 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { supabase } from '../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { styles, theme } from '../../../lib/theme'
 import { createPortal } from 'react-dom'
 import { getWikiTemplate } from '../../../lib/wikiTemplates'
 
 export default function CreateWikiPage() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const router = useRouter()
 
   const [title, setTitle] = useState('')

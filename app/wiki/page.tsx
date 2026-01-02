@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { theme, styles } from '../../lib/theme'
 
 type WikiPage = {
   id: string
@@ -21,6 +21,7 @@ type WikiPage = {
 
 export default function WikiHomePage() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const router = useRouter()
   const [pages, setPages] = useState<WikiPage[]>([])
   const [filteredPages, setFilteredPages] = useState<WikiPage[]>([])

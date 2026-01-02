@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { supabase } from '../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { styles, theme } from '../../../lib/theme'
 
 type Session = {
   id: string
@@ -33,9 +33,12 @@ type Signup = {
 
 export default function SessionDetailPage() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
-  const sessionId = params.id as string
+
+  // Ensure params is not null
+  const sessionId = params?.id as string
 
   const [session, setSession] = useState<Session | null>(null)
   const [signups, setSignups] = useState<Signup[]>([])

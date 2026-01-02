@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useTheme } from '../../../contexts/ThemeContext'
 import { supabase } from '../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { theme, styles } from '../../../lib/theme'
 
 type WikiPage = {
   id: string
@@ -24,14 +24,17 @@ type WikiPage = {
 
 export default function WikiPageView() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
-  const slug = params.slug as string
+
+  // Ensure params is not null
+  const slug = params?.slug as string
 
   const [page, setPage] = useState<WikiPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [poi, setPoi] = useState(null)
+  const [poi, setPoi] = useState<{ id: string; title: string } | null>(null)
 
   useEffect(() => {
     if (slug) {
@@ -44,7 +47,7 @@ export default function WikiPageView() {
       // Fetch POI for this wiki page
       supabase
         .from('map_pois')
-        .select('*')
+        .select('id, title')
         .eq('wiki_page_id', page.id)
         .single()
         .then(({ data }) => {
@@ -156,7 +159,7 @@ export default function WikiPageView() {
         <p style={{ color: theme.colors.text.secondary, marginBottom: '2rem' }}>
           The wiki page you're looking for doesn't exist.
         </p>
-        <a href="/wiki" style={{ color: theme.colors.primary }}>← Back to Wiki</a>
+        <a href="/wiki" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>← Back to Wiki</a>
       </div>
     )
   }
@@ -165,13 +168,13 @@ export default function WikiPageView() {
     <main style={styles.container}>
       {/* Back Link and Go to Map */}
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <a href="/wiki" style={{ color: theme.colors.primary, textDecoration: 'none' }}>
+        <a href="/wiki" style={{ color: theme.colors.primary, textDecoration: 'none',fontWeight: 'bold' }}>
           ← Back to Wiki
         </a>
         {poi && (
           <a 
             href={`/map?poi=${poi.id}`} 
-            style={{ color: theme.colors.primary, textDecoration: 'none' }}
+            style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 'bold' }}
             title={`Go to map location: ${poi.title}`}
           >
             Go to Map →
@@ -272,10 +275,10 @@ export default function WikiPageView() {
       {/* Page Content */}
       <div style={{
         ...styles.preview,
-        background: '#f9f7f3',
-        color: '#222',
-        borderRadius: '6px',
-        border: '1px solid #ddd',
+        background: theme.colors.background.main, // Updated to use theme background color
+        color: theme.colors.text.primary, // Updated to use theme text color
+        borderRadius: theme.borderRadius,
+        border: `1px solid ${theme.colors.border.primary}`,
         padding: '1.5rem',
         paddingTop: '1rem',
         minHeight: '400px',
@@ -283,7 +286,7 @@ export default function WikiPageView() {
         <div className="markdown-content">
           <style>{`
             .markdown-content h3 {
-              background: linear-gradient(90deg, #7c4a03 0%, #3e2a13 80%, #111 100%);
+              background: linear-gradient(90deg, ${theme.colors.primary} 0%, ${theme.colors.secondary} 80%, ${theme.colors.text.primary} 100%);
               -webkit-background-clip: text;
               -webkit-text-fill-color: transparent;
               background-clip: text;
@@ -304,19 +307,19 @@ export default function WikiPageView() {
             }
             .markdown-content hr {
               border: none;
-              border-top: 2px solid #e0c9a6;
+              border-top: 2px solid ${theme.colors.border.secondary};
               margin: 1.5rem 0;
             }
             .markdown-content code {
-              background: #f4efe6;
-              color: #7c4a03;
+              background: ${theme.colors.background.secondary};
+              color: ${theme.colors.primary};
               border-radius: 4px;
               padding: 2px 6px;
               font-size: 0.98em;
             }
             .markdown-content pre code {
-              background: #f4efe6;
-              color: #7c4a03;
+              background: ${theme.colors.background.secondary};
+              color: ${theme.colors.primary};
               border-radius: 6px;
               padding: 1em;
               display: block;
@@ -326,9 +329,9 @@ export default function WikiPageView() {
               margin-left: 1.5em;
             }
             .markdown-content blockquote {
-              border-left: 4px solid #e0c9a6;
-              background: #f9f7f3;
-              color: #7c4a03;
+              border-left: 4px solid ${theme.colors.border.secondary};
+              background: ${theme.colors.background.tertiary};
+              color: ${theme.colors.text.secondary};
               margin: 1em 0;
               padding: 0.5em 1em;
               font-style: italic;

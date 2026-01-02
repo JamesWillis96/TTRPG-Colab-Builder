@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../contexts/AuthContext'
-import { styles, theme } from '../../lib/theme'
+import { useTheme } from '../../contexts/ThemeContext'
 
 
 export default function LoginPage() {
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { user, signIn } = useAuth()
+  const { theme, styles } = useTheme()
   const router = useRouter()
 
   useEffect(() => {

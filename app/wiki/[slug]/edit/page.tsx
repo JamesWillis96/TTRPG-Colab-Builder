@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
+import { useTheme } from '../../../../contexts/ThemeContext'
 import { supabase } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { theme, styles } from '../../../../lib/theme'
 import { getWikiTemplate } from '../../../../lib/wikiTemplates'
 
 export default function EditWikiPage() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const { slug } = useParams()
   const router = useRouter()
 

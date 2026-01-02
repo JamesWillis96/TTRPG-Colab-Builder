@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
-import { theme, styles } from '../../lib/theme'
 
 export default function ProfilePage() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const [username, setUsername] = useState('')
   const [role, setRole] = useState('player')
   const [aboutMe, setAboutMe] = useState('')

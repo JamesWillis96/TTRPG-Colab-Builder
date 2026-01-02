@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../contexts/AuthContext'
-import { styles, theme } from '../../lib/theme'
+import { useTheme } from '../../contexts/ThemeContext'
 
 export default function SignupPage() {
   const router = useRouter()
   const { user, signUp, loading: authLoading } = useAuth()
+  const { theme, styles } = useTheme()
   
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

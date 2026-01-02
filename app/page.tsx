@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { styles, theme } from '../lib/theme'
 
 type WikiPage = {
   id: string
@@ -27,6 +27,7 @@ type Profile = {
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth()
+  const { theme, styles } = useTheme()
   const router = useRouter()
 
   const [profile, setProfile] = useState<Profile | null>(null)

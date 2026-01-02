@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
+import { useTheme } from '../../../../contexts/ThemeContext'
 import { supabase } from '../../../../lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { theme, styles } from '../../../../lib/theme'
 
 export default function EditSessionPage() {
   const { user } = useAuth()
+  const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
   const sessionId = params.id as string

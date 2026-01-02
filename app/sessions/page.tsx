@@ -3,16 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
-import { styles, theme } from '../../lib/theme'
 import confetti from 'canvas-confetti'
 
 // Constants
 const SESSION_TABLE_NAMES = ['session_players', 'session_signups']
 const GRID_COLUMNS = 'repeat(2, 1fr)'
 const CARD_MIN_HEIGHT = '300px'
-const DESCRIPTION_COLOR = '#4A3F35'
-const NO_SESSIONS_COLOR = '#857564'
 
 // Types
 type Player = { session_id: string; player_id: string }
@@ -27,35 +25,10 @@ type SessionRow = {
   status?: string
 }
 
-// Styles
-const cardStyle = {
-  ...styles.sessionCard,
-  display: 'flex',
-  flexDirection: 'column' as const,
-  minHeight: CARD_MIN_HEIGHT
-}
-
-const buttonContainerStyle = {
-  display: 'flex',
-  gap: '0.25rem',
-  marginTop: 'auto',
-  paddingTop: '0.5rem',
-  justifyContent: 'space-between'
-}
-
-const descriptionStyle = {
-  color: DESCRIPTION_COLOR,
-  marginBottom: '1.5rem',
-  display: '-webkit-box',
-  WebkitLineClamp: 4,
-  WebkitBoxOrient: 'vertical' as const,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis'
-}
-
 export default function SessionsPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
+  const { theme, styles } = useTheme()
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [playersBySession, setPlayersBySession] = useState<Record<string, Player[]>>({})
   const [profilesMap, setProfilesMap] = useState<Record<string, { username?: string }>>({})
@@ -69,6 +42,32 @@ export default function SessionsPage() {
   const [angle, setAngle] = useState(90)
   const [startVelocity, setStartVelocity] = useState(100)
   const [decay, setDecay] = useState(.8)
+
+  // Styles defined inside component
+  const cardStyle = {
+    ...styles.sessionCard,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    minHeight: CARD_MIN_HEIGHT
+  }
+
+  const buttonContainerStyle = {
+    display: 'flex',
+    gap: '0.25rem',
+    marginTop: 'auto',
+    paddingTop: '0.5rem',
+    justifyContent: 'space-between'
+  }
+
+  const descriptionStyle = {
+    color: theme.colors.text.tertiary,
+    marginBottom: '1.5rem',
+    display: '-webkit-box',
+    WebkitLineClamp: 4,
+    WebkitBoxOrient: 'vertical' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -237,7 +236,7 @@ export default function SessionsPage() {
 
       {sessions.length === 0 ? (
         <div style={styles.card}>
-          <p style={{ fontSize: '1.25rem', color: '#857564' }}>No sessions scheduled yet</p>
+          <p style={{ fontSize: '1.25rem', color: theme.colors.text.tertiary }}>No sessions scheduled yet</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '2rem', rowGap: '0.8rem' }}>

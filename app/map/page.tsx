@@ -1,11 +1,12 @@
+// Fixed potential null issue with searchParams
 'use client'
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { theme, styles } from '../../lib/theme'
 
 type POI = {
   id: string
@@ -19,6 +20,7 @@ type POI = {
 
 export default function MapEditorPage() {
   const { user, loading: authLoading } = useAuth()
+  const { theme, styles } = useTheme()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [instructionsOpen, setInstructionsOpen] = useState(true)
@@ -51,7 +53,7 @@ export default function MapEditorPage() {
 
   // Handle POI query parameter for zooming and centering
   useEffect(() => {
-    const poiId = searchParams.get('poi')
+    const poiId = searchParams?.get('poi')
     if (poiId && pois.length > 0 && mapDimensions.width > 0 && containerRef.current) {
       const poi = pois.find(p => p.id === poiId)
       if (poi) {
@@ -652,6 +654,7 @@ function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canD
   setMovingOffset: (offset: {x: number, y: number}) => void
   icon: string
 }) {
+  const { theme } = useTheme()
   const [isHovered, setIsHovered] = useState(false)
   const pixelX = poi.x * mapDimensions.width
   const pixelY = poi.y * mapDimensions.height
