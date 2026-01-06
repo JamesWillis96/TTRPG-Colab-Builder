@@ -11,6 +11,7 @@ import confetti from 'canvas-confetti'
 const SESSION_TABLE_NAMES = ['session_players', 'session_signups']
 const GRID_COLUMNS = 'repeat(2, 1fr)'
 const CARD_MIN_HEIGHT = '300px'
+const isMobile = window.innerWidth <= 500
 
 // Types
 type Player = { session_id: string; player_id: string }
@@ -43,6 +44,8 @@ export default function SessionsPage() {
   const [startVelocity, setStartVelocity] = useState(100)
   const [decay, setDecay] = useState(.8)
 
+
+
   // Styles defined inside component
   const cardStyle = {
     ...styles.sessionCard,
@@ -59,15 +62,15 @@ export default function SessionsPage() {
     justifyContent: 'space-between'
   }
 
-  const descriptionStyle = {
-    color: theme.colors.text.tertiary,
-    marginBottom: '1.5rem',
-    display: '-webkit-box',
-    WebkitLineClamp: 4,
-    WebkitBoxOrient: 'vertical' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  }
+const descriptionStyle = {
+  color: theme.colors.text.tertiary,
+  marginBottom: '1.5rem',
+  display: '-webkit-box',
+  WebkitLineClamp: isMobile ? 3 : 4, // Adjust the number of lines to clamp
+  WebkitBoxOrient: 'vertical' as const,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login')
@@ -221,11 +224,11 @@ export default function SessionsPage() {
   return (
     <main style={styles.container}>
       <div style={{...styles.flexBetween, marginBottom: '2rem'}}>
-        <h1 style={styles.heading1}>Game Sessions</h1>
+        <h1 style={isMobile ? styles.heading2 : styles.heading1}>Game Sessions</h1>
         {(profile?.role === 'gm' || profile?.role === 'admin') && (
           <a
             href="/sessions/create"
-            style={styles.button.primary}
+            style={isMobile ? styles.button.primary : styles.button.primary}
           >
             + Create Session
           </a>
@@ -239,7 +242,12 @@ export default function SessionsPage() {
           <p style={{ fontSize: '1.25rem', color: theme.colors.text.tertiary }}>No sessions scheduled yet</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '2rem', rowGap: '0.8rem' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : GRID_COLUMNS, // Use one column for mobile
+          gap: '2rem',
+          rowGap: '0.8rem',
+        }}>
           {sessions.map(session => {
             const players = playersBySession[session.id] || []
             const joined = players.some(p => p.player_id === user.id)

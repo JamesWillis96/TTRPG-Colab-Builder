@@ -1,4 +1,4 @@
-# TTRPG Colab Builder
+# The Loom
 
 A collaborative worldbuilding and session management web application for West Marches style TTRPG campaigns, with primary support for Daggerheart.
 
@@ -52,8 +52,8 @@ This project aims to create a web-based platform where players can:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/JamesWillis96/TTRPG-Colab-Builder.git
-cd TTRPG-Colab-Builder
+git clone https://github.com/JamesWillis96/The-Loom.git
+cd The-Loom
 ```
 
 2. Install dependencies:
@@ -85,7 +85,7 @@ New to web development? Check out these guides in the `/docs` folder:
 ## 📁 Project Structure
 
 ```
-TTRPG-Colab-Builder/
+The Loom/
 ├── app/                    # Next.js app directory (pages & routes)
 ├── components/             # Reusable React components
 ├── lib/                    # Utility functions and configurations
@@ -97,7 +97,7 @@ TTRPG-Colab-Builder/
 
 ## 🗺️ Project Roadmap
 
-Check the [Issues](https://github.com/JamesWillis96/TTRPG-Colab-Builder/issues) tab for the detailed development roadmap and current tasks.
+Check the [Issues](https://github.com/JamesWillis96/The-Loom/issues) tab for the detailed development roadmap and current tasks.
 
 ## 🤝 Contributing
 

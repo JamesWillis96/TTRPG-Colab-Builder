@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
@@ -28,13 +29,13 @@ export default function WikiHomePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')  // Changed from categoryFilter
   const [sortBy, setSortBy] = useState('created')
+  const isMobile = window.innerWidth <= 500
 
   const categories = ['all', 'npc', 'location', 'lore', 'item', 'faction', 'player character']
   const sortOptions = [
     { value: 'created', label: 'Most Recent' },
     { value: 'title', label: 'Title A-Z' },
     { value: 'title-desc', label: 'Title Z-A' },
-    { value: 'category', label: 'Category' },
     { value: 'author', label: 'Author' }
   ]
 
@@ -107,12 +108,6 @@ export default function WikiHomePage() {
           return a.title.localeCompare(b.title)
         case 'title-desc':
           return b.title.localeCompare(a.title)
-        case 'category':
-          // Primary sort: by category alphabetically
-          const categoryCompare = a.category.localeCompare(b.category)
-          if (categoryCompare !== 0) return categoryCompare
-          // Secondary sort: by title within the same category
-          return a.title.localeCompare(b.title)
         case 'author':
           const authorA = a.profiles?.username || ''
           const authorB = b.profiles?.username || ''
@@ -157,6 +152,179 @@ export default function WikiHomePage() {
   }
 
   return (
+    isMobile ? ( 
+      
+     <main style={{ padding: '1rem', fontFamily: 'Arial, sans-serif' }}>
+  {/* Header */}
+  <h1
+    style={{
+      fontSize: '1.5rem',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      marginBottom: '1rem',
+      color: theme.colors.text.primary, // Match desktop header color
+    }}
+  >
+    📚 Wiki
+  </h1>
+
+  {/* Search Input */}
+  <input
+    type="text"
+    placeholder="Search pages..."
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    style={{
+      width: '100%',
+      padding: '0.75rem',
+      border: `1px solid ${theme.colors.border.primary}`, // Match desktop border color
+      borderRadius: theme.borderRadius,
+      marginBottom: '1rem',
+      fontSize: '1rem',
+      color: theme.colors.text.primary, // Match desktop text color
+      backgroundColor: theme.colors.background.input, // Match desktop input background
+    }}
+  />
+
+  {/* Category Selector */}
+  <select
+    value={selectedCategory}
+    onChange={(e) => setSelectedCategory(e.target.value)}
+    style={{
+      width: '100%',
+      padding: '0.75rem',
+      border: `1px solid ${theme.colors.border.primary}`, // Match desktop border color
+      borderRadius: theme.borderRadius,
+      marginBottom: '1rem',
+      fontSize: '1rem',
+      color: theme.colors.text.primary, // Match desktop text color
+      backgroundColor: theme.colors.background.input, // Match desktop input background
+    }}
+  >
+    <option value="all">All Categories</option>
+    <option value="npc">NPCs</option>
+    <option value="location">Locations</option>
+    <option value="lore">Lore</option>
+    <option value="item">Items</option>
+    <option value="faction">Factions</option>
+    <option value="player character">Player Characters</option>
+  </select>
+
+  {/* Sort Dropdown and Create Page Button */}
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: '0.5rem',
+      marginBottom: '1rem',
+    }}
+  >
+    {/* Sort Dropdown */}
+    <select
+      value={sortBy}
+      onChange={(e) => setSortBy(e.target.value)}
+      style={{
+        flex: 1,
+        padding: '0.75rem',
+        border: `1px solid ${theme.colors.border.primary}`, // Match desktop border color
+        borderRadius: theme.borderRadius,
+        fontSize: '1rem',
+        color: theme.colors.text.primary, // Match desktop text color
+        backgroundColor: theme.colors.background.input, // Match desktop input background
+      }}
+    >
+      <option value="created">Most Recent</option>
+      <option value="title">Title A-Z</option>
+      <option value="title-desc">Title Z-A</option>
+      <option value="author">Author</option>
+    </select>
+
+    {/* Create Page Button */}
+    <a
+      href="/wiki/create"
+      style={{
+        padding: '0.75rem 1rem',
+        background: theme.colors.primary, // Match desktop button background
+        borderRadius: theme.borderRadius,
+        color: theme.colors.text.primary, // Match desktop button text color
+        fontWeight: '600',
+        textAlign: 'center',
+        textDecoration: 'none',
+        fontSize: '1rem',
+        whiteSpace: 'nowrap',
+        border: `1px solid ${theme.colors.primary}`, // Match desktop button border
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = theme.colors.text.primary
+        e.currentTarget.style.color = theme.colors.primary
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = theme.colors.primary
+        e.currentTarget.style.color = theme.colors.text.primary
+      }}
+    >
+      + Create Page
+    </a>
+  </div>
+
+  {/* Content Section */}
+    <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(1, 1fr)',
+              marginTop: '2rem',
+              gap: '1rem'
+            }}>
+              {filteredPages.map((page) => (
+                <a
+                  key={page.id}
+                  href={`/wiki/${page.slug}`}
+                  className="entry"  // Added class for hover styling
+                  style={{
+                    display: 'block',
+                    background: 'transparent',
+                    border: `1px solid ${theme.colors.border.secondary}`,
+                    borderRadius: theme.borderRadius,
+                    padding: '1rem',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = theme.colors.primary
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = theme.colors.border.secondary
+                  }}
+                >
+                  <h3 style={{ 
+                    fontSize: '1rem',
+                    margin: '0 0 0.5rem 0',
+                    color: theme.colors.secondary // Changed from primary to text.primary for default
+                  }}>
+                    {page.title}
+                  </h3>
+                  {/* <div style={{ 
+                    fontSize: '0.875rem',
+                    color: theme.colors.text.secondary,
+                    marginBottom: '0.5rem'
+                  }}>
+                    Category: {page.category.charAt(0).toUpperCase() + page.category.slice(1)}
+                  </div> */}
+                  <div style={{ 
+                    fontSize: '0.875rem',
+                    color: theme.colors.text.secondary
+                  }}>
+                    by {page.profiles?.username || 'Unknown'} • Updated {new Date(page.updated_at).toLocaleDateString()}
+                  </div>
+                </a>
+              ))}
+            </div>
+    </main>
+      
+    ) : (
+
+      // Desktop Layout
     <main style={styles.container}>
       {/* Add style block for hover effect */}
       <style>{`
@@ -383,5 +551,6 @@ export default function WikiHomePage() {
         </div>
       </div>
     </main>
+  )
   )
 }
