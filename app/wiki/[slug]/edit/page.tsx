@@ -12,7 +12,8 @@ import { getWikiTemplate } from '../../../../lib/wikiTemplates'
 export default function EditWikiPage() {
   const { user } = useAuth()
   const { theme, styles } = useTheme()
-  const { slug } = useParams()
+  const params = useParams()
+  const slug = params?.slug
   const router = useRouter()
 
   const [title, setTitle] = useState('')
@@ -28,6 +29,10 @@ export default function EditWikiPage() {
   const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
 
   useEffect(() => {
+    if (!slug || typeof slug !== 'string') {
+      throw new Error('Invalid slug parameter')
+    }
+
     supabase
       .from('wiki_pages')
       .select('*')

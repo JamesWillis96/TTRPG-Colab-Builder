@@ -31,6 +31,9 @@ export default function WikiPageView() {
 
   // Ensure params is not null
   const slug = params?.slug as string
+  if (!slug || typeof slug !== 'string') {
+  throw new Error('Invalid slug parameter')
+  }
 
   const [page, setPage] = useState<WikiPage | null>(null)
   const [loading, setLoading] = useState(true)
