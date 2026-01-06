@@ -11,7 +11,6 @@ import confetti from 'canvas-confetti'
 const SESSION_TABLE_NAMES = ['session_players', 'session_signups']
 const GRID_COLUMNS = 'repeat(2, 1fr)'
 const CARD_MIN_HEIGHT = '300px'
-const isMobile = window.innerWidth <= 500
 
 // Types
 type Player = { session_id: string; player_id: string }
@@ -37,12 +36,20 @@ export default function SessionsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [joining, setJoining] = useState<Record<string, boolean>>({})
+  const [isMobile, setIsMobile] = useState(false)
   // confetti controls
   const [particleCount, setParticleCount] = useState(30)
   const [spread, setSpread] = useState(360)
   const [angle, setAngle] = useState(90)
   const [startVelocity, setStartVelocity] = useState(100)
   const [decay, setDecay] = useState(.8)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 500)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
 
 

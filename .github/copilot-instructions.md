@@ -7,7 +7,7 @@ The Loom is a collaborative worldbuilding and session management web application
 - **`app/`**: Contains Next.js pages and routes. Subdirectories represent different features (e.g., `login`, `map`, `wiki`). Dynamic routes are used for session and wiki management.
 - **`components/`**: Reusable React components. Example: `NavBar.tsx` for navigation.
 - **`contexts/`**: Context providers for global state management (e.g., `AuthContext.tsx` for authentication).
-- **`lib/`**: Utility functions and configurations (e.g., `supabase.ts` for database interactions).
+- **`lib/`**: Utility functions and configurations (e.g., `supabase.ts` for database interactions, `wikiTemplates.ts` for wiki-related utilities).
 - **`public/`**: Static assets like images and icons.
 - **`styles/`**: Global CSS styles.
 - **`types/`**: TypeScript type definitions.
@@ -40,6 +40,7 @@ The Loom is a collaborative worldbuilding and session management web application
 - **Supabase Integration**: Database and authentication are managed via Supabase. See `lib/supabase.ts` for configuration.
 - **Tailwind CSS**: Styling is handled using Tailwind. Refer to `app/globals.css` for global styles.
 - **Context API**: Global state (e.g., authentication) is managed using React Context. Example: `contexts/AuthContext.tsx`.
+- **Wiki Templates**: Use `lib/wikiTemplates.ts` for predefined wiki structures and utilities.
 
 ## External Dependencies
 - **Supabase**: Used for database and authentication.
@@ -63,6 +64,14 @@ Dynamic routes are used for sessions and wiki pages. Example:
 - `app/sessions/[id]/page.tsx`: Displays session details.
 - `app/wiki/[slug]/page.tsx`: Displays a wiki page.
 
+### Wiki Utilities
+Use `lib/wikiTemplates.ts` to manage wiki-related utilities. Example:
+```typescript
+import { generateWikiTemplate } from '../lib/wikiTemplates';
+
+const template = generateWikiTemplate('location');
+```
+
 ## Planned Enhancements
 - Add unit tests using Jest.
 - Implement collaborative editing for wiki pages.
@@ -73,5 +82,6 @@ Dynamic routes are used for sessions and wiki pages. Example:
 - Use TypeScript for all new code.
 - Ensure Supabase queries handle errors gracefully.
 - Adhere to Tailwind CSS conventions for styling.
+- Leverage `lib/wikiTemplates.ts` for wiki-related operations.
 
 For questions or clarifications, refer to the [README.md](../README.md) or the `docs/` folder.

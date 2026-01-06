@@ -27,7 +27,14 @@ export default function WikiPageView() {
   const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
-  const isMobile = window.innerWidth <= 500
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 500)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Ensure params is not null
   const slug = params?.slug as string

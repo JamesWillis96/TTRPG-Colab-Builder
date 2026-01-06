@@ -29,7 +29,14 @@ export default function WikiHomePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')  // Changed from categoryFilter
   const [sortBy, setSortBy] = useState('created')
-  const isMobile = window.innerWidth <= 500
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 500)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const categories = ['all', 'npc', 'location', 'lore', 'item', 'faction', 'player character']
   const sortOptions = [
