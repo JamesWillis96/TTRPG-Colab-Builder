@@ -11,7 +11,7 @@ export default function EditSessionPage() {
   const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
-  const sessionId = params.id as string
+  const sessionId = params?.id as string;
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
