@@ -40,6 +40,9 @@ export default function MapEditorPage() {
   const [mapDimensions, setMapDimensions] = useState({ width: 1920, height: 1080 })
   const [movingPoiId, setMovingPoiId] = useState<string | null>(null)
   const [movingOffset, setMovingOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
+  const [isPinching, setIsPinching] = useState(false)
+  const [lastTouchDistance, setLastTouchDistance] = useState(0)
+  const [lastTouchCenter, setLastTouchCenter] = useState({x: 0, y: 0})
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -148,6 +151,63 @@ export default function MapEditorPage() {
 
   const handleMouseUp = () => {
     setIsDragging(false)
+  }
+
+  // Touch helpers
+  const getTouchDistance = (touches: TouchList) => {
+    if (touches.length < 2) return 0
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  const getTouchCenter = (touches: TouchList) => {
+    if (touches.length < 2) return { x: touches[0].clientX, y: touches[0].clientY }
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2
+    }
+  }
+
+  // Touch handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true)
+      setDragStart({ x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y })
+    } else if (e.touches.length === 2) {
+      setIsPinching(true)
+      setLastTouchDistance(getTouchDistance(e.touches))
+      setLastTouchCenter(getTouchCenter(e.touches))
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault() // Prevent scrolling
+    if (e.touches.length === 1 && isDragging) {
+      setPosition({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y })
+    } else if (e.touches.length === 2 && isPinching) {
+      const newDistance = getTouchDistance(e.touches)
+      const newCenter = getTouchCenter(e.touches)
+      if (lastTouchDistance > 0) {
+        const scaleChange = newDistance / lastTouchDistance
+        const newScale = Math.min(Math.max(0.1, scale * scaleChange), 5)
+        const mapCenterX = (newCenter.x - position.x) / scale
+        const mapCenterY = (newCenter.y - position.y) / scale
+        const newX = newCenter.x - mapCenterX * newScale
+        const newY = newCenter.y - mapCenterY * newScale
+        setScale(newScale)
+        setPosition({ x: newX, y: newY })
+      }
+      setLastTouchDistance(newDistance)
+      setLastTouchCenter(newCenter)
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      setIsDragging(false)
+      setIsPinching(false)
+    }
   }
 
   // Add POI on right-click
@@ -463,7 +523,9 @@ export default function MapEditorPage() {
       >
         <div>🖱️ Click and drag to pan</div>
         <div>🔍 Scroll to zoom</div>
-        <div>📍 Right-click to add pin</div>
+        <div>� Touch and drag to pan (mobile)</div>
+        <div>🤏 Pinch to zoom (mobile)</div>
+        <div>�📍 Right-click to add pin</div>
         <div>✋ Ctrl+Click and drag a pin to move it</div>
         <div>🖱️ Click a pin to open its wiki page</div>
         <div style={{ textAlign: 'center', marginTop: '0.5rem', color: theme.colors.text.muted }}>
@@ -501,6 +563,9 @@ export default function MapEditorPage() {
         onMouseUp={e => { handleMouseUp(); handleMapMouseUp(); }}
         onMouseLeave={handleMouseUp}
         onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{
           width: '100%',
           height: '100%',
@@ -510,7 +575,8 @@ export default function MapEditorPage() {
           backgroundImage: 'url(/world-map.png)',
           backgroundPosition: `${position.x}px ${position.y}px`,
           backgroundSize: `${mapDimensions.width * scale}px ${mapDimensions.height * scale}px`,
-          backgroundRepeat: 'no-repeat'
+          backgroundRepeat: 'no-repeat',
+          touchAction: 'none' // Prevent default touch behaviors
         }}
       >
         {/* POI Markers */}
