@@ -154,14 +154,14 @@ export default function MapEditorPage() {
   }
 
   // Touch helpers
-  const getTouchDistance = (touches: TouchList) => {
+  const getTouchDistance = (touches: React.TouchList) => {
     if (touches.length < 2) return 0
     const dx = touches[0].clientX - touches[1].clientX
     const dy = touches[0].clientY - touches[1].clientY
     return Math.sqrt(dx * dx + dy * dy)
   }
 
-  const getTouchCenter = (touches: TouchList) => {
+  const getTouchCenter = (touches: React.TouchList) => {
     if (touches.length < 2) return { x: touches[0].clientX, y: touches[0].clientY }
     return {
       x: (touches[0].clientX + touches[1].clientX) / 2,
