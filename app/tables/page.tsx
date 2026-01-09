@@ -469,7 +469,7 @@ export default function TablesPage() {
               >
                 Create New Table
               </button>
-              <h2 style={{ margin: '0 0 1rem 0' }}>Tables</h2>
+              {/* <h2 style={{ margin: '0 0 1rem 0' }}>Tables</h2> */}
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 {tables.map(table => (
                   <div
@@ -516,7 +516,7 @@ export default function TablesPage() {
                   <button onClick={handleRoll} style={{ ...styles.button.primary, marginBottom: '1rem' }}>
                     Roll on {selectedTable.title}
                   </button>
-                  <h3 style={{ margin: '0 0 1rem 0' }}>Entries</h3>
+                  {/* <h3 style={{ margin: '0 0 1rem 0' }}>Entries</h3> */}
                   <div style={{ overflowY: 'auto', flex: 1 }}>
                     {selectedTable.entries.map((entry, index) => (
                       <button
@@ -610,7 +610,7 @@ export default function TablesPage() {
           >
             Create New Table
           </button>
-          <h2 style={{ margin: 0 }}>Tables</h2>
+          {/* <h2 style={{ margin: 0 }}>Tables</h2> */}
           <div style={{ overflowY: 'auto', paddingRight: '1rem', marginRight: '-1rem' }}>
             {tables.map(table => (
               <div
@@ -680,7 +680,7 @@ export default function TablesPage() {
               <button onClick={handleRoll} style={styles.button.primary}>
                 Roll on {selectedTable.title}
               </button>
-              <h3 style={{ margin: 0 }}>Entries</h3>
+              {/* <h3 style={{ margin: 0 }}>Entries</h3> */}
               <div style={{ overflowY: 'auto', paddingRight: '1rem', marginRight: '-1rem' }}>
                 {selectedTable.entries.map((entry, index) => (
                   <button
