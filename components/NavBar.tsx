@@ -69,6 +69,9 @@ export default function Navbar() {
           <Link href="/sessions" style={{ color: theme.colors.text.primary }}>
             Sessions
           </Link>
+          <Link href="/tables" style={{ color: theme.colors.text.primary }}>
+            Tables
+          </Link>
           <Link href="/wiki" style={{ color: theme.colors.text.primary }}>
             Wiki
           </Link>
