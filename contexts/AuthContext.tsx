@@ -87,17 +87,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username
-        }
-      }
-    })
+  // Determine the base URL (works in both dev and production)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
 
-    if (error) throw error
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        username
+      },
+      emailRedirectTo: `${baseUrl}/login`
+    }
+  })
+
+  if (error) throw error
 
     // Profile will be created automatically by database trigger
   }

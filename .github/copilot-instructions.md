@@ -1,87 +1,133 @@
-# AI Coding Agent Instructions for The Loom
+# The Loom - AI Coding Agent Instructions
 
-## Project Overview
-The Loom is a collaborative worldbuilding and session management web application designed for West Marches style TTRPG campaigns, with a focus on supporting the Daggerheart system. The project is built using Next.js, TypeScript, and Supabase, and aims to provide tools for session scheduling, player management, and collaborative lore creation.
+## Architecture Overview
+West Marches TTRPG campaign management app using Next.js 16 App Router with client-side rendering, Supabase for backend/auth, and a centralized theming system. All pages are `'use client'` components with global state via React Context.
 
-## Key Directories and Files
-- **`app/`**: Contains Next.js pages and routes. Subdirectories represent different features (e.g., `login`, `map`, `wiki`). Dynamic routes are used for session and wiki management.
-- **`components/`**: Reusable React components. Example: `NavBar.tsx` for navigation.
-- **`contexts/`**: Context providers for global state management (e.g., `AuthContext.tsx` for authentication).
-- **`lib/`**: Utility functions and configurations (e.g., `supabase.ts` for database interactions, `wikiTemplates.ts` for wiki-related utilities).
-- **`public/`**: Static assets like images and icons.
-- **`styles/`**: Global CSS styles.
-- **`types/`**: TypeScript type definitions.
+## Critical Patterns
 
-## Development Workflow
-### Setting Up the Project
-1. Clone the repository and install dependencies:
-   ```bash
-   git clone https://github.com/JamesWillis96/The-Loom.git
-   cd The-Loom
-   npm install
-   ```
-2. Set up environment variables:
-   ```bash
-   cp .env.example .env.local
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+### Styling: Inline Styles with Theme Objects (NOT Tailwind)
+**This project does NOT use Tailwind utility classes.** Styling is exclusively done through inline `style` props using centralized theme objects from `lib/theme.ts`.
 
-### Building and Testing
-- **Build**: Run `npm run build` to create a production build.
-- **Linting**: Use `npm run lint` to check for code quality issues.
-- **Testing**: (Planned) Add unit and integration tests in the future.
+```tsx
+// ✅ CORRECT - Use theme object with inline styles
+import { useTheme } from '../contexts/ThemeContext'
 
-## Project-Specific Conventions
-- **Dynamic Routing**: The project uses dynamic routes extensively (e.g., `app/sessions/[id]/page.tsx` for session details).
-- **Supabase Integration**: Database and authentication are managed via Supabase. See `lib/supabase.ts` for configuration.
-- **Tailwind CSS**: Styling is handled using Tailwind. Refer to `app/globals.css` for global styles.
-- **Context API**: Global state (e.g., authentication) is managed using React Context. Example: `contexts/AuthContext.tsx`.
-- **Wiki Templates**: Use `lib/wikiTemplates.ts` for predefined wiki structures and utilities.
+const { theme, styles } = useTheme()
+return <div style={{ 
+  background: theme.colors.background.secondary,
+  padding: theme.spacing.md,
+  borderRadius: theme.borderRadius
+}}>Content</div>
 
-## External Dependencies
-- **Supabase**: Used for database and authentication.
-- **Next.js**: Full-stack framework for React.
-- **Tailwind CSS**: Utility-first CSS framework.
-
-## Examples of Common Patterns
-### Authentication
-Authentication is handled via Supabase. Example usage:
-```typescript
-import { supabase } from '../lib/supabase';
-
-const { data, error } = await supabase.auth.signInWithPassword({
-  email: 'user@example.com',
-  password: 'password123',
-});
+// ❌ WRONG - Never use Tailwind classes
+return <div className="bg-gray-100 p-4 rounded">Content</div>
 ```
 
-### Dynamic Routing
-Dynamic routes are used for sessions and wiki pages. Example:
-- `app/sessions/[id]/page.tsx`: Displays session details.
-- `app/wiki/[slug]/page.tsx`: Displays a wiki page.
+**Key theme locations:**
+- Theme definitions: `lib/theme.ts` (lightTheme, darkTheme, createStyles)
+- Theme context: `contexts/ThemeContext.tsx`
+- Global CSS (minimal): `app/globals.css` (only for `.theme-background`, `.markdown-content`, and Tailwind base)
 
-### Wiki Utilities
-Use `lib/wikiTemplates.ts` to manage wiki-related utilities. Example:
-```typescript
-import { generateWikiTemplate } from '../lib/wikiTemplates';
+### Authentication Pattern
+All authenticated pages must redirect unauthenticated users:
 
-const template = generateWikiTemplate('location');
+```tsx
+'use client'
+import { useAuth } from '../../contexts/AuthContext'
+import { useRouter } from 'next/navigation'
+
+const { user, profile, loading: authLoading } = useAuth()
+const router = useRouter()
+
+useEffect(() => {
+  if (!authLoading && !user) {
+    router.push('/login')
+  }
+}, [user, authLoading, router])
 ```
 
-## Planned Enhancements
-- Add unit tests using Jest.
-- Implement collaborative editing for wiki pages.
-- Enhance the GM dashboard with analytics.
+**Auth context provides:** `user` (Supabase User), `profile` (from profiles table), `signIn()`, `signUp()`, `signOut()`
 
-## Notes for AI Agents
-- Follow the established folder structure and naming conventions.
-- Use TypeScript for all new code.
-- Ensure Supabase queries handle errors gracefully.
-- Adhere to Tailwind CSS conventions for styling.
-- Leverage `lib/wikiTemplates.ts` for wiki-related operations.
+### Supabase Data Access
+Direct client-side queries (no API routes):
 
-For questions or clarifications, refer to the [README.md](../README.md) or the `docs/` folder.
+```tsx
+import { supabase } from '../lib/supabase'
+
+// Fetch with error handling
+const { data, error } = await supabase
+  .from('wiki_pages')
+  .select('*')
+  .order('updated_at', { ascending: false })
+
+if (error) throw error
+```
+
+**Database tables:** `profiles`, `wiki_pages`, `sessions`, `session_players`, `map_pois`, `random_tables`
+
+### Wiki Template System
+Templates defined in `lib/wikiTemplates.ts` with markdown structure for each category:
+
+```tsx
+import { wikiTemplates } from '../../../lib/wikiTemplates'
+
+// Get template content
+const template = wikiTemplates['location'] // or 'npc', 'item', 'lore', 'faction', 'player character'
+```
+
+**Categories:** npc, player character, location, lore, item, faction
+
+## File Structure Patterns
+
+### App Router Convention
+- **Pages:** `app/[feature]/page.tsx` (always `'use client'`)
+- **Dynamic routes:** `app/sessions/[id]/page.tsx`, `app/wiki/[slug]/page.tsx`
+- **Edit pages:** `app/wiki/[slug]/edit/page.tsx`
+- **Create pages:** `app/wiki/create/page.tsx`
+
+### Component Structure
+```tsx
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
+import { supabase } from '../lib/supabase'
+
+export default function PageName() {
+  const { user, profile } = useAuth()
+  const { theme, styles } = useTheme()
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  
+  useEffect(() => {
+    // Load data
+  }, [])
+  
+  return (
+    <main style={styles.container}>
+      {/* Content using inline styles */}
+    </main>
+  )
+}
+```
+
+## Development Commands
+```bash
+npm run dev    # Start dev server on :3000
+npm run build  # Production build
+npm run lint   # ESLint check
+```
+
+## Common Gotchas
+1. **All pages are client components** - Always start with `'use client'`
+2. **No Tailwind classes in JSX** - Use `theme.colors.*` and inline styles
+3. **Relative imports** - Use `'../../contexts/AuthContext'` style paths (no aliases configured)
+4. **Dark mode** - Handled via `[data-theme="dark"]` CSS selectors in `globals.css`
+5. **Mobile responsiveness** - Use `isMobile` state with window resize listener pattern (see `NavBar.tsx`)
+
+## Key Files Reference
+- Auth flow: `contexts/AuthContext.tsx`, `app/login/page.tsx`, `app/signup/page.tsx`
+- Theme system: `lib/theme.ts`, `contexts/ThemeContext.tsx`
+- Layout wrapper: `app/layout.tsx` (wraps with ThemeProvider + AuthProvider)
+- Navigation: `components/NavBar.tsx` (mobile-responsive with theme toggle)
