@@ -1,0 +1,6 @@
+export { WikiLayout } from './WikiLayout'
+export { WikiHeader } from './WikiHeader'
+export { WikiSidebar } from './WikiSidebar'
+export { WikiContentPane } from './WikiContentPane'
+export { WikiEditorModal } from './WikiEditorModal'
+export { WikiRevisionsModal } from './WikiRevisionsModal'

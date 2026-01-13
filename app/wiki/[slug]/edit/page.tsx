@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { supabase } from '../../../../lib/supabase'
@@ -8,6 +8,7 @@ import { useParams, useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getWikiTemplate } from '../../../../lib/wikiTemplates'
+import { wikiCategories } from '../../../../lib/wikiCategories'
 
 export default function EditWikiPage() {
   const { user } = useAuth()
@@ -19,14 +20,19 @@ export default function EditWikiPage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [category, setCategory] = useState('general')
+  const [state, setState] = useState<'draft' | 'pending_review' | 'published'>('draft')
   const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [pendingCategory, setPendingCategory] = useState<string | null>(null)
   const [showCategoryConfirm, setShowCategoryConfirm] = useState(false)
   const [pageId, setPageId] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
 
-  const categories = ['npc', 'location', 'lore', 'item', 'faction', 'player character']
+  const allowedTypes = useMemo(() => ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'], [])
+
+  const states: Array<'draft' | 'pending_review' | 'published'> = ['draft', 'pending_review', 'published']
 
   useEffect(() => {
     if (!slug || typeof slug !== 'string') {
@@ -43,6 +49,7 @@ export default function EditWikiPage() {
           setTitle(data.title)
           setContent(data.content)
           setCategory(data.category)
+          setState((data as any).state || 'draft')
           setPageId(data.id)
           console.log('Loaded page:', data)
           if (user) {
@@ -57,26 +64,64 @@ export default function EditWikiPage() {
     e.preventDefault()
     setSaving(true)
     setError('')
+
+    if (!title.trim() || !content.trim() || !category.trim()) {
+      setError('Title, category, and content are required.')
+      setSaving(false)
+      return
+    }
+
+    if (attachments.length) {
+      const invalid = attachments.find(f => f.size > 10 * 1024 * 1024 || !allowedTypes.includes(f.type))
+      if (invalid) {
+        setError('Files must be JPG/PNG/WEBP/GIF/PDF/DOCX under 10MB each.')
+        setSaving(false)
+        return
+      }
+    }
+
     try {
       const newSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       if (!pageId) throw new Error('Page not loaded')
-      console.log('Submitting update:', { pageId, title, newSlug, content, category })
+
+      // create a revision snapshot
+      await supabase.from('wiki_revisions').insert({
+        wiki_page_id: pageId,
+        title,
+        slug: newSlug,
+        content,
+        category,
+        state,
+        author_id: user?.id || null,
+        created_at: new Date().toISOString()
+      })
+
       const { error: updateError, data: updateData } = await supabase
         .from('wiki_pages')
-        .update({ title, slug: newSlug, content, category, updated_at: new Date().toISOString() })
+        .update({ title, slug: newSlug, content, category, state, excerpt: content.slice(0, 200), updated_at: new Date().toISOString() })
         .eq('id', pageId)
         .select()
-      console.log('Update result:', { updateError, updateData })
-      if (!updateError && (Array.isArray(updateData) && updateData.length === 0)) {
-        console.warn('Update returned no data. This may be an RLS or permission issue.')
-      }
+
       if (updateError) throw updateError
+
+      if (attachments.length) {
+        setUploading(true)
+        const bucket = supabase.storage.from('wiki_uploads')
+        for (const file of attachments) {
+          const filePath = `${pageId}/${Date.now()}-${file.name}`
+          const { error: uploadError } = await bucket.upload(filePath, file, { upsert: true })
+          if (uploadError) throw uploadError
+        }
+        setUploading(false)
+      }
+
       router.push(`/wiki/${newSlug}`)
     } catch (err: any) {
       setError(err.message)
       console.error('Update error:', err)
     } finally {
       setSaving(false)
+      setUploading(false)
     }
   }
 
@@ -97,6 +142,17 @@ export default function EditWikiPage() {
   const handleCancelCategoryChange = () => {
     setShowCategoryConfirm(false)
     setPendingCategory(null)
+  }
+
+  const handleFiles = (fileList: FileList | null) => {
+    if (!fileList) return
+    const files = Array.from(fileList)
+    const invalid = files.find(f => f.size > 10 * 1024 * 1024 || !allowedTypes.includes(f.type))
+    if (invalid) {
+      setError('Files must be JPG/PNG/WEBP/GIF/PDF/DOCX under 10MB each.')
+      return
+    }
+    setAttachments(files)
   }
 
   return (
@@ -122,7 +178,7 @@ export default function EditWikiPage() {
                 style={styles.select}
                 disabled={showCategoryConfirm}
               >
-                {categories.map(cat => (
+                {wikiCategories.map(cat => (
                   <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
                 ))}
               </select>
@@ -151,6 +207,31 @@ export default function EditWikiPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: '12px', color: theme.colors.text.tertiary, marginBottom: '6px' }}>State</div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {states.map(s => (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => setState(s)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    border: `1px solid ${state === s ? theme.colors.primary : theme.colors.border.primary}`,
+                    backgroundColor: state === s ? `${theme.colors.primary}15` : theme.colors.background.main,
+                    color: state === s ? theme.colors.primary : theme.colors.text.secondary,
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {s === 'draft' ? 'Draft' : s === 'pending_review' ? 'Pending Review' : 'Published'}
+                </button>
+              ))}
             </div>
           </div>
           <div>
@@ -232,6 +313,21 @@ export default function EditWikiPage() {
           {error && (
             <div style={{ padding: '0.75rem', background: theme.colors.background.error, border: `1px solid ${theme.colors.danger}`, borderRadius: theme.borderRadius, color: theme.colors.danger }}>{error}</div>
           )}
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            <div style={{ fontSize: '12px', color: theme.colors.text.tertiary }}>Attachments (optional, max 10MB each, jpg/png/webp/gif/pdf/docx)</div>
+            <input
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => handleFiles(e.target.files)}
+              style={styles.input}
+            />
+            {attachments.length > 0 && (
+              <div style={{ fontSize: '12px', color: theme.colors.text.secondary }}>
+                {attachments.length} file{attachments.length > 1 ? 's' : ''} ready to upload.
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button type="submit" disabled={saving} style={styles.buttonPrimary}>{saving ? 'Saving...' : 'Save Changes'}</button>
             <a href={`/wiki/${slug}`} style={styles.buttonSecondary}>Cancel</a>

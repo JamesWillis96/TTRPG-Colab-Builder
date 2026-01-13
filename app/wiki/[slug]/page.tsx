@@ -17,6 +17,7 @@ type WikiPage = {
   author_id: string
   created_at: string
   updated_at: string
+  state?: 'draft' | 'pending_review' | 'published'
   profile?: {
     username: string
   }
@@ -46,6 +47,9 @@ export default function WikiPageView() {
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [poi, setPoi] = useState<{ id: string; title: string } | null>(null)
+  const [attachments, setAttachments] = useState<Array<{ name: string; url: string; type: string }>>([])
+  const [revisions, setRevisions] = useState<Array<any>>([])
+  const [rollingBack, setRollingBack] = useState(false)
 
   useEffect(() => {
     if (slug) {
@@ -53,9 +57,32 @@ export default function WikiPageView() {
     }
   }, [slug, user])
 
+  const fetchAttachments = async (pageId: string) => {
+    const bucket = supabase.storage.from('wiki_uploads')
+    const { data: files, error } = await bucket.list(pageId, { limit: 50 })
+    if (!error && files) {
+      const withUrls = await Promise.all(files.map(async (file) => {
+        const { data: signed } = await bucket.createSignedUrl(`${pageId}/${file.name}`, 60 * 60)
+        return { name: file.name, url: signed?.signedUrl || '', type: (file as any).metadata?.mimetype || '' }
+      }))
+      setAttachments(withUrls)
+    } else {
+      setAttachments([])
+    }
+  }
+
+  const fetchRevisions = async (pageId: string) => {
+    const { data: revs } = await supabase
+      .from('wiki_revisions')
+      .select('*')
+      .eq('wiki_page_id', pageId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    if (revs) setRevisions(revs)
+  }
+
   useEffect(() => {
     if (page?.id) {
-      // Fetch POI for this wiki page
       supabase
         .from('map_pois')
         .select('id, title')
@@ -64,8 +91,11 @@ export default function WikiPageView() {
         .then(({ data }) => {
           if (data) setPoi(data)
         })
+
+      fetchAttachments(page.id)
+      fetchRevisions(page.id)
     }
-  }, [page?.id])
+  }, [page?.id, page?.updated_at])
 
   const loadPage = async () => {
     setLoading(true)
@@ -131,6 +161,32 @@ export default function WikiPageView() {
       router.push('/wiki')
     } catch (error: any) {
       alert('Error deleting page: ' + error.message)
+    }
+  }
+
+  const handleRollback = async (revision: any) => {
+    if (!page?.id) return
+    if (!confirm('Restore this revision? Current content will be replaced.')) return
+    setRollingBack(true)
+    try {
+      const { error } = await supabase
+        .from('wiki_pages')
+        .update({
+          title: revision.title,
+          slug: revision.slug,
+          content: revision.content,
+          category: revision.category,
+          state: revision.state,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', page.id)
+
+      if (error) throw error
+      await loadPage()
+    } catch (err: any) {
+      alert('Failed to restore revision: ' + err.message)
+    } finally {
+      setRollingBack(false)
     }
   }
 
@@ -271,6 +327,31 @@ export default function WikiPageView() {
 
     <span style={{ color: theme.colors.text.secondary }}>•</span>
 
+    <span
+      style={{
+        padding: '0rem 0.75rem 0.25rem 0.75rem',
+        background:
+          page.state === 'draft'
+            ? `${theme.colors.primary}20`
+            : page.state === 'pending_review'
+              ? `${theme.colors.secondary}20`
+              : `${theme.colors.success}20`,
+        color:
+          page.state === 'draft'
+            ? theme.colors.primary
+            : page.state === 'pending_review'
+              ? theme.colors.secondary
+              : theme.colors.success,
+        fontWeight: 'bold',
+        borderRadius: theme.borderRadius,
+        textTransform: 'capitalize'
+      }}
+    >
+      {page.state || 'draft'}
+    </span>
+
+    <span style={{ color: theme.colors.text.secondary }}>•</span>
+
     <span>
       <strong>By: </strong> {page.profile?.username || 'Unknown'}
     </span>
@@ -377,6 +458,97 @@ export default function WikiPageView() {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{page.content}</ReactMarkdown>
         </div>
       </div>
+
+      {/* Attachments */}
+      {attachments.length > 0 && (
+        <div style={{ marginTop: '1.5rem', border: `1px solid ${theme.colors.border.primary}`, borderRadius: theme.borderRadius, padding: '1rem' }}>
+          <div style={{ fontWeight: 700, marginBottom: '0.75rem', color: theme.colors.text.primary }}>Attachments</div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+            {attachments.map(file => (
+              <a
+                key={file.name}
+                href={file.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  border: `1px solid ${theme.colors.border.primary}`,
+                  borderRadius: 8,
+                  padding: '8px',
+                  textDecoration: 'none',
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.secondary,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}
+              >
+                {file.type.startsWith('image') ? (
+                  <img src={file.url} alt={file.name} style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: 6 }} />
+                ) : (
+                  <div style={{
+                    height: '140px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 6,
+                    border: `1px dashed ${theme.colors.border.primary}`,
+                    color: theme.colors.text.secondary,
+                    fontSize: '12px'
+                  }}>
+                    {file.type || 'File'}
+                  </div>
+                )}
+                <div style={{ fontSize: '12px', fontWeight: 600 }}>{file.name}</div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Revisions */}
+      {revisions.length > 0 && (
+        <div style={{ marginTop: '1.5rem', border: `1px solid ${theme.colors.border.primary}`, borderRadius: theme.borderRadius, padding: '1rem' }}>
+          <div style={{ fontWeight: 700, marginBottom: '0.75rem', color: theme.colors.text.primary }}>Revision history</div>
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {revisions.map((rev, idx) => (
+              <div key={rev.id || idx} style={{
+                border: `1px solid ${theme.colors.border.primary}`,
+                borderRadius: 8,
+                padding: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 700, color: theme.colors.text.primary }}>{rev.title || 'Untitled revision'}</div>
+                  <div style={{ fontSize: '12px', color: theme.colors.text.secondary }}>
+                    {new Date(rev.created_at).toLocaleString()} · {rev.category} · {rev.state || 'draft'}
+                  </div>
+                </div>
+                {isAuthorized && (
+                  <button
+                    onClick={() => handleRollback(rev)}
+                    disabled={rollingBack}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 6,
+                      border: `1px solid ${theme.colors.primary}`,
+                      backgroundColor: `${theme.colors.primary}15`,
+                      color: theme.colors.primary,
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 700
+                    }}
+                  >
+                    {rollingBack ? 'Restoring...' : 'Restore'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   )
 }
