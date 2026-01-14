@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { useTheme } from './ThemeContext'
+import type { MarkdownTheme } from '../lib/markdownThemes'
 
 export type WikiEntryState = 'draft' | 'pending_review' | 'published'
 
@@ -15,6 +16,8 @@ export interface WikiEntry {
   content: string
   state: WikiEntryState
   author_id: string
+  markdown_theme?: MarkdownTheme
+  featured_image?: string
   created_at: string
   updated_at: string
 }
@@ -24,16 +27,31 @@ export interface EntryFormData {
   slug: string
   category: string
   content: string
-  state: WikiEntryState
   changeSummary?: string
+  markdown_theme?: MarkdownTheme
+  featured_image?: string
+}
+
+export interface WikiRevision {
+  id: string
+  wiki_page_id: string
+  title: string
+  slug: string
+  content: string
+  category: string
+  author_id: string
+  change_summary: string
+  created_at: string
 }
 
 export interface WikiContextType {
   // Data
   entries: WikiEntry[]
   selectedEntry: WikiEntry | null
+  revisions: WikiRevision[]
   recentlyViewed: string[]
   loading: boolean
+  revisionsLoading: boolean
   error: string | null
 
   // Filters
@@ -46,6 +64,7 @@ export interface WikiContextType {
   isEditModalOpen: boolean
   isRevisionsModalOpen: boolean
   editingEntry: WikiEntry | null
+  selectedMarkdownTheme: MarkdownTheme
 
   // Categories (derived)
   categories: string[]
@@ -63,7 +82,9 @@ export interface WikiContextType {
   closeEditModal: () => void
   openRevisionsModal: () => void
   closeRevisionsModal: () => void
-  saveEntry: (data: EntryFormData) => Promise<void>
+  loadRevisions: (entryId: string) => Promise<void>
+  setSelectedMarkdownTheme: (theme: MarkdownTheme) => void
+  saveEntry: (data: EntryFormData, entryIdToUpdate?: string) => Promise<void>
   deleteEntry: (id: string) => Promise<void>
   reloadEntries: () => Promise<void>
 }
@@ -87,8 +108,10 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
   // Core data
   const [entries, setEntries] = useState<WikiEntry[]>([])
   const [selectedEntry, setSelectedEntry] = useState<WikiEntry | null>(null)
+  const [revisions, setRevisions] = useState<WikiRevision[]>([])
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [revisionsLoading, setRevisionsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Filters
@@ -101,6 +124,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isRevisionsModalOpen, setIsRevisionsModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<WikiEntry | null>(null)
+  const [selectedMarkdownTheme, setSelectedMarkdownTheme] = useState<MarkdownTheme>('github')
 
   // Derived data
   const categories = ['All', ...new Set(entries.map(e => e.category))]
@@ -214,24 +238,33 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Save (create or update) an entry
-  async function saveEntry(data: EntryFormData) {
+  async function saveEntry(data: EntryFormData, entryIdToUpdate?: string) {
     if (!user) throw new Error('Must be logged in to save')
 
     try {
-      if (editingEntry) {
+      // Determine if we're updating or creating
+      const targetEntry = entryIdToUpdate 
+        ? entries.find(e => e.id === entryIdToUpdate) || editingEntry
+        : editingEntry
+
+      if (targetEntry) {
         // Editing existing entry
         // 1. Create revision snapshot
-        await supabase.from('wiki_revisions').insert({
-          wiki_page_id: editingEntry.id,
-          title: editingEntry.title,
-          slug: editingEntry.slug,
-          content: editingEntry.content,
-          category: editingEntry.category,
-          state: editingEntry.state,
+        const { error: revisionError } = await supabase.from('wiki_revisions').insert({
+          wiki_page_id: targetEntry.id,
+          title: targetEntry.title,
+          slug: targetEntry.slug,
+          content: targetEntry.content,
+          category: targetEntry.category,
           author_id: user.id,
           change_summary: data.changeSummary || 'Updated entry',
           created_at: new Date().toISOString()
         })
+
+        if (revisionError) {
+          console.error('Revision error:', revisionError)
+          throw new Error(`Failed to save revision: ${revisionError.message}. Check RLS policies for wiki_revisions table.`)
+        }
 
         // 2. Update entry
         const { data: updated, error: err } = await supabase
@@ -241,22 +274,31 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
             slug: data.slug,
             content: data.content,
             category: data.category,
-            state: data.state,
+            markdown_theme: data.markdown_theme || 'github',
+            featured_image: data.featured_image || null,
             updated_at: new Date().toISOString()
           })
-          .eq('id', editingEntry.id)
+          .eq('id', targetEntry.id)
           .select()
-          .single()
 
-        if (err) throw err
+        if (err) {
+          console.error('Update error:', err)
+          throw err
+        }
+        if (!updated || updated.length === 0) {
+          console.error('No data returned from update')
+          throw new Error('Failed to update entry - no data returned. Check RLS policies.')
+        }
+
+        const updatedEntry = updated[0]
 
         // 3. Update local state
         setEntries(prev =>
           prev
-            .map(e => (e.id === updated.id ? updated : e))
+            .map(e => (e.id === updatedEntry.id ? updatedEntry : e))
             .sort((a, b) => a.title.localeCompare(b.title))
         )
-        setSelectedEntry(updated)
+        setSelectedEntry(updatedEntry)
       } else {
         // Creating new entry
         const { data: created, error: err } = await supabase
@@ -266,8 +308,9 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
             slug: data.slug,
             category: data.category,
             content: data.content,
-            state: data.state,
             author_id: user.id,
+            markdown_theme: data.markdown_theme || 'github',
+            featured_image: data.featured_image || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           })
@@ -313,11 +356,33 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Load revisions for an entry
+  async function loadRevisions(entryId: string) {
+    setRevisionsLoading(true)
+    try {
+      const { data, error: err } = await supabase
+        .from('wiki_revisions')
+        .select('*')
+        .eq('wiki_page_id', entryId)
+        .order('created_at', { ascending: false })
+
+      if (err) throw err
+      setRevisions(data || [])
+    } catch (err: any) {
+      console.error('Error loading revisions:', err)
+      setError(err.message || 'Failed to load revisions')
+    } finally {
+      setRevisionsLoading(false)
+    }
+  }
+
   const value: WikiContextType = {
     entries,
     selectedEntry,
+    revisions,
     recentlyViewed,
     loading,
+    revisionsLoading,
     error,
     searchQuery,
     selectedCategory,
@@ -326,6 +391,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     isEditModalOpen,
     isRevisionsModalOpen,
     editingEntry,
+    selectedMarkdownTheme,
     categories,
     filteredEntries,
     recentEntries,
@@ -343,6 +409,8 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     },
     openRevisionsModal: () => setIsRevisionsModalOpen(true),
     closeRevisionsModal: () => setIsRevisionsModalOpen(false),
+    loadRevisions,
+    setSelectedMarkdownTheme,
     saveEntry,
     deleteEntry,
     reloadEntries

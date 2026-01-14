@@ -3,6 +3,7 @@ import './globals.css'
 import { AuthProvider } from '../contexts/AuthContext'
 import { ThemeProvider } from '../contexts/ThemeContext'
 import Navbar from '../components/NavBar'
+import BugReportButton from '../components/BugReportButton'
 
 export const metadata: Metadata = {
   title: 'TTRPG Colab Builder',
@@ -41,6 +42,7 @@ export default function RootLayout({
           <AuthProvider>
             <Navbar />
             {children}
+                      <BugReportButton />
           </AuthProvider>
         </ThemeProvider>
       </body>

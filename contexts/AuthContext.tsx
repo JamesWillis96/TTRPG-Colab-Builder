@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase'
 type Profile = {
   id: string
   username: string
-  role:  string
+  role: string
+  profile_image?: string
   created_at: string
 }
 

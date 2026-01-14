@@ -11,9 +11,13 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  const handleSignOut = async () => {
-    await signOut()
-    window.location.href = '/login'
+  const handleAuth = async () => {
+    if (user) {
+      await signOut()
+      window.location.href = '/login'
+    } else {
+      window.location.href = '/login'
+    }
   }
 
  useEffect(() => {
@@ -102,7 +106,7 @@ export default function Navbar() {
             </span>
           </label>
         <button
-          onClick={handleSignOut}
+          onClick={handleAuth}
           style={{
             padding: '0.25rem 0.5rem',
             border: '2px solid',
@@ -115,7 +119,7 @@ export default function Navbar() {
             WebkitTransition: 'all 0.5s',
           }}
         >
-          Logout
+          {user ? 'Logout' : 'Login'}
         </button>
 
 
@@ -299,7 +303,7 @@ export default function Navbar() {
             </li>
             <li>
               <button
-                onClick={handleSignOut}
+                onClick={handleAuth}
                 style={{ color: theme.colors.primary }}
               >
                 <svg
@@ -315,7 +319,7 @@ export default function Navbar() {
                 >
                   <path d="M15 12H3m6-6l-6 6 6 6"></path>
                 </svg>
-                <span>Logout</span>
+                <span>{user ? 'Logout' : 'Login'}</span>
               </button>
             </li>
           </ul>

@@ -18,10 +18,10 @@ export default function SignupPage() {
   const [signedUp, setSignedUp] = useState(false)  // Add state for signup success
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && signedUp) {
       router.push('/')
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, signedUp, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,16 +94,32 @@ export default function SignupPage() {
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
-      minHeight: 'calc(100vh - 80px)',
-      padding: '2rem'
+      minHeight: '100vh',
+      padding: '2rem',
+      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
+      {/* Gradient overlay - darker on sides, lighter in center */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(to right, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 30%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.4) 70%, rgba(0, 0, 0, 0.8) 100%)',
+        zIndex: 0
+      }} />
       <div style={{
         width: '100%',
         maxWidth: '400px',
         background: theme.colors.background.secondary,
         border: `1px solid ${theme.colors.border.primary}`,
         borderRadius: theme.borderRadius,
-        padding: '2rem'
+        padding: '2rem',
+        position: 'relative',
+        zIndex: 1,
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
       }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '2rem', textAlign: 'center', color: theme.colors.text.primary }}>
           Create Account

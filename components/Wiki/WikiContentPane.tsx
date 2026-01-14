@@ -3,7 +3,10 @@
 import React from 'react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useWiki } from '../../contexts/WikiContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { getMarkdownThemeCSS } from '../../lib/markdownThemes'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { calculateReadingTime } from '../../lib/wiki'
 
 /**
@@ -12,8 +15,30 @@ import { calculateReadingTime } from '../../lib/wiki'
  * Displays metadata (category, author, date)
  * Provides edit/delete/revisions actions
  */
+
+function ImageComponent({ src, alt }: { src?: string; alt?: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt || ''}
+      style={{
+        float: 'right',
+        marginLeft: '16px',
+        marginBottom: '16px',
+        maxWidth: '100%',
+        width: '300px',
+        height: 'auto',
+        borderRadius: '8px',
+        position: 'sticky',
+        top: '16px',
+      }}
+    />
+  )
+}
+
 export function WikiContentPane() {
   const { theme } = useTheme()
+  const { user, profile } = useAuth()
   const { selectedEntry, openEditModal, deleteEntry, openRevisionsModal } = useWiki()
 
   if (!selectedEntry) {
@@ -100,41 +125,46 @@ export function WikiContentPane() {
             >
               History
             </button>
-            <button
-              onClick={() => openEditModal(selectedEntry)}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.primary,
-                color: '#fff',
-                border: 'none',
-                borderRadius: theme.borderRadius,
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500,
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => deleteEntry(selectedEntry.id)}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.borderRadius,
-                cursor: 'pointer',
-                fontSize: '14px',
-                transition: 'opacity 0.2s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-            >
-              Delete
-            </button>
+            {/* Show Edit/Delete only if user is the author or an admin */}
+            {(user?.id === selectedEntry.author_id || profile?.role === 'admin') && (
+              <>
+                <button
+                  onClick={() => openEditModal(selectedEntry)}
+                  style={{
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    backgroundColor: theme.colors.primary,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: theme.borderRadius,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    transition: 'opacity 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteEntry(selectedEntry.id)}
+                  style={{
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: theme.borderRadius,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    transition: 'opacity 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                >
+                  Delete
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -145,19 +175,63 @@ export function WikiContentPane() {
           flex: 1,
           overflow: 'auto',
           padding: theme.spacing.lg,
+          paddingBottom: '200px',
+          display: 'flex',
+          gap: theme.spacing.lg,
         }}
       >
+        <style>{getMarkdownThemeCSS(selectedEntry.markdown_theme || 'github')}</style>
+        
+        {/* Main content area */}
         <article
           className="markdown-content"
           style={{
             color: theme.colors.text.primary,
             fontSize: '15px',
             lineHeight: '1.6',
-            maxWidth: '800px',
+            width: '100%',
+            maxWidth: '900px',
           }}
         >
-          <ReactMarkdown>{selectedEntry.content}</ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              img: (props) => (
+                <ImageComponent 
+                  src={typeof props.src === 'string' ? props.src : undefined} 
+                  alt={typeof props.alt === 'string' ? props.alt : undefined} 
+                />
+              ),
+            }}
+          >
+            {selectedEntry.content}
+          </ReactMarkdown>
         </article>
+
+        {/* Featured image sidebar */}
+        {selectedEntry.featured_image && (
+          <div
+            style={{
+              flex: 1,
+              minWidth: '250px',
+              maxWidth: '400px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing.md,
+            }}
+          >
+            <img
+              src={selectedEntry.featured_image}
+              alt={selectedEntry.title}
+              style={{
+                width: '100%',
+                height: 'auto',
+                borderRadius: theme.borderRadius,
+                objectFit: 'cover',
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

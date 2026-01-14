@@ -29,6 +29,7 @@ export function WikiSidebar() {
         flexDirection: 'column',
         height: '100%',
         overflow: 'hidden',
+        marginRight: '0rem'
       }}
     >
       {/* Search input */}

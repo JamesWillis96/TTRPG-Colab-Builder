@@ -12,13 +12,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { user, signIn } = useAuth()
+  const { user } = useAuth()
   const { theme, styles } = useTheme()
   const router = useRouter()
 
   useEffect(() => {
   if (user) {
-    router.push('/sessions')
+    router.push('/')
   }
 }, [user, router])
 
@@ -46,13 +46,36 @@ export default function LoginPage() {
 
   return (
     <main style={{ 
-      maxWidth: '400px', 
-      margin:  '4rem auto', 
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       padding: '2rem',
-      border: `1px solid ${theme.colors.border.primary}`,
-      borderRadius: theme.borderRadius,
-      background: theme.colors.background.secondary
+      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
+      {/* Gradient overlay - darker on sides, lighter in center */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(to right, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 30%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.4) 70%, rgba(0, 0, 0, 0.8) 100%)',
+        zIndex: 0
+      }} />
+      <div style={{ 
+        position: 'relative',
+        zIndex: 1,
+        maxWidth: '400px',
+        width: '100%',
+        padding: '2rem',
+        border: `1px solid ${theme.colors.border.primary}`,
+        borderRadius: theme.borderRadius,
+        background: theme.colors.background.secondary,
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+      }}>
       <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem', color: theme.colors.text.primary }}>Log In</h1>
       
       <form onSubmit={handleLogin}>
@@ -80,6 +103,18 @@ export default function LoginPage() {
             required
             style={styles.input}
           />
+          <a
+            href="/forgot-password"
+            style={{
+              display: 'inline-block',
+              marginTop: '0.5rem',
+              fontSize: '0.85rem',
+              color: theme.colors.primary,
+              textDecoration: 'none'
+            }}
+          >
+            Forgot password?
+          </a>
         </div>
 
         {error && (
@@ -118,6 +153,7 @@ export default function LoginPage() {
         Don't have an account?{' '}
         <a href="/signup" style={{ color: theme.colors.primary }}>Sign up</a>
       </p>
+      </div>
     </main>
   )
 }

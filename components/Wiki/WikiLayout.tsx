@@ -37,7 +37,6 @@ export function WikiLayout() {
           display: 'flex',
           flex: 1,
           overflow: 'hidden',
-          gap: theme.spacing.md,
         }}
       >
         {/* Sidebar - search, filter, entry list */}

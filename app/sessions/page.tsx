@@ -18,6 +18,15 @@ type SessionRow = {
 
 type Player = { session_id: string; player_id: string }
 
+type GMProfile = {
+  id: string
+  username: string
+  profile_image?: string
+  image_zoom?: number
+  image_position_x?: number
+  image_position_y?: number
+}
+
 export default function SessionsPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
@@ -26,6 +35,7 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [playersBySession, setPlayersBySession] = useState<Record<string, Player[]>>({})
   const [gmNames, setGmNames] = useState<Record<string, string>>({})
+  const [gmProfiles, setGmProfiles] = useState<Record<string, GMProfile>>({})
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState<Record<string, boolean>>({})
@@ -61,7 +71,6 @@ export default function SessionsPage() {
         .order('date_time', { ascending: true })
       if (sessionsErr) throw sessionsErr
       
-      // Filter out past sessions (only show upcoming sessions)
       const now = new Date()
       const sArray: SessionRow[] = (sessionList || []).filter(s => new Date(s.date_time) > now)
       setSessions(sArray)
@@ -69,16 +78,27 @@ export default function SessionsPage() {
       const ids = sArray.map(s => s.id)
       const gmIds = [...new Set(sArray.map(s => s.gm_id))]
       
-      // Fetch GM usernames
       if (gmIds.length > 0) {
         const { data: gmProfiles, error: gmErr } = await supabase
           .from('profiles')
-          .select('id,username')
+          .select('id,username,profile_image,image_zoom,image_position_x,image_position_y')
           .in('id', gmIds)
         if (gmErr) throw gmErr
         const gmMap: Record<string, string> = {}
-        ;(gmProfiles || []).forEach(p => { gmMap[p.id] = p.username })
+        const gmProfileMap: Record<string, GMProfile> = {}
+        ;(gmProfiles || []).forEach(p => { 
+          gmMap[p.id] = p.username
+          gmProfileMap[p.id] = {
+            id: p.id,
+            username: p.username,
+            profile_image: p.profile_image || undefined,
+            image_zoom: p.image_zoom || 1,
+            image_position_x: p.image_position_x || 0,
+            image_position_y: p.image_position_y || 0
+          }
+        })
         setGmNames(gmMap)
+        setGmProfiles(gmProfileMap)
       }
 
       if (!ids.length) {
@@ -90,10 +110,6 @@ export default function SessionsPage() {
         .from('session_players')
         .select('session_id,player_id')
         .in('session_id', ids)
-
-      // DEBUG: log what the client got back from Supabase
-      // console.debug('loadData -> session ids:', ids)
-      // console.debug('loadData -> playersRes:', playersRes, 'playersErr:', playersErr)
 
       if (playersErr) throw playersErr
 
@@ -122,27 +138,21 @@ export default function SessionsPage() {
   useEffect(() => {
     if (!user) return
 
-    // Subscribe to session_players changes (joins/leaves)
     const playersSubscription = supabase
       .channel('session_players_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'session_players' },
-        () => {
-          loadData()
-        }
+        () => loadData()
       )
       .subscribe()
 
-    // Subscribe to sessions changes (creation, updates)
     const sessionsSubscription = supabase
       .channel('sessions_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'sessions' },
-        () => {
-          loadData()
-        }
+        () => loadData()
       )
       .subscribe()
 
@@ -152,45 +162,16 @@ export default function SessionsPage() {
     }
   }, [user, loadData])
 
-  const createSampleSession = async () => {
-    if (!user) return
-    setCreating(true)
-    try {
-      const sample = {
-        title: 'Lorem Ipsum Session',
-        description: 'Short sample session description.',
-        date_time: new Date().toISOString(),
-        max_players: 8,
-        game_system: 'West Marches'
-      }
-      const { data, error } = await supabase.from('sessions').insert([sample]).select()
-      // DEBUG: show inserted row
-      // console.debug('createSampleSession -> result:', { data, error })
-      if (error) throw error
-      await loadData()
-    } catch (err: any) {
-      console.error('createSampleSession error', err)
-      alert('Failed to create session: ' + (err?.message || String(err)))
-    } finally {
-      setCreating(false)
-    }
-  }
-
   const joinSession = async (sessionId: string) => {
     if (!user) return
     setJoining(prev => ({ ...prev, [sessionId]: true }))
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('session_players')
         .insert({ session_id: sessionId, player_id: user.id })
-        .select()
-      // DEBUG: show insert result
-      // console.debug('joinSession -> result:', { sessionId, data, error })
       if (error) {
         if (error.code === '23505' || (error.message || '').toLowerCase().includes('duplicate')) {
           alert('You are already signed up for this session.')
-        } else if (error.code === '42501') {
-          setError('Permission denied. You may not have access to join sessions.')
         } else {
           throw error
         }
@@ -213,13 +194,7 @@ export default function SessionsPage() {
         .delete()
         .eq('session_id', sessionId)
         .eq('player_id', user.id)
-      if (error) {
-        if (error.code === '42501') {
-          setError('Permission denied. You may not have access to leave sessions.')
-        } else {
-          throw error
-        }
-      }
+      if (error) throw error
       await loadData()
     } catch (err: any) {
       console.error('leaveSession error', err)
@@ -232,15 +207,14 @@ export default function SessionsPage() {
   const createSession = async (form: {
     title: string
     description?: string
-    date: string // YYYY-MM-DD
-    time: string // HH:MM
+    date: string
+    time: string
     max_players?: number | null
     game_system?: string
   }) => {
     if (!user) return
     setCreating(true)
     try {
-      // Combine date + time into an ISO string (UTC); DB field is timestamp with timezone
       const iso = new Date(`${form.date}T${form.time}`).toISOString()
       const row = {
         title: form.title,
@@ -251,16 +225,9 @@ export default function SessionsPage() {
         game_system: form.game_system
       }
       const { error } = await supabase.from('sessions').insert([row])
-      if (error) {
-        if (error.code === '42501') {
-          setError('Permission denied. You may not have access to create sessions.')
-        } else {
-          throw error
-        }
-      } else {
-        await loadData()
-        setShowCreateModal(false)
-      }
+      if (error) throw error
+      await loadData()
+      setShowCreateModal(false)
     } catch (err: any) {
       console.error('createSession error', err)
       alert('Failed to create session: ' + (err?.message || String(err)))
@@ -295,17 +262,10 @@ export default function SessionsPage() {
           game_system: form.game_system
         })
         .eq('id', editingSession.id)
-      if (error) {
-        if (error.code === '42501') {
-          setError(`Permission denied: ${error.message}. If you're an admin, the database RLS policy may need to be updated to allow admin edits.`)
-        } else {
-          throw error
-        }
-      } else {
-        await loadData()
-        setShowEditModal(false)
-        setEditingSession(null)
-      }
+      if (error) throw error
+      await loadData()
+      setShowEditModal(false)
+      setEditingSession(null)
     } catch (err: any) {
       console.error('editSession error', err)
       alert('Failed to edit session: ' + (err?.message || String(err)))
@@ -318,15 +278,8 @@ export default function SessionsPage() {
     if (!confirm('Are you sure you want to delete this session?')) return
     try {
       const { error } = await supabase.from('sessions').delete().eq('id', sessionId)
-      if (error) {
-        if (error.code === '42501') {
-          setError(`Permission denied: ${error.message}. If you're an admin, the database RLS policy may need to be updated to allow admin deletes.`)
-        } else {
-          throw error
-        }
-      } else {
-        await loadData()
-      }
+      if (error) throw error
+      await loadData()
     } catch (err: any) {
       console.error('deleteSession error', err)
       alert('Failed to delete session: ' + (err?.message || String(err)))
@@ -349,168 +302,297 @@ export default function SessionsPage() {
     })
   }
 
-  const sessionsInCurrentMonth = sessions.filter(s => {
-    const sessionDate = new Date(s.date_time)
-    return sessionDate.getUTCFullYear() === currentMonth.getUTCFullYear() &&
-           sessionDate.getUTCMonth() === currentMonth.getUTCMonth()
-  })
-
   const displayedSessions = selectedDate ? getSessionsForDate(selectedDate) : (showAllSessions ? sessions : sessions.slice(0, 6))
   if (loading || authLoading) return <div style={{ padding: 24 }}>Loading...</div>
   if (!user) return null
 
   return (
-    <main style={styles.container}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={styles.heading1}>Sessions</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <button 
-              onClick={() => { setViewMode('list'); setSelectedDate(null) }} 
-              style={{ ...styles.button.secondary, opacity: viewMode === 'list' ? 1 : 0.6 }}
-            >
-              List
-            </button>
-            <button 
-              onClick={() => setViewMode('calendar')} 
-              style={{ ...styles.button.secondary, opacity: viewMode === 'calendar' ? 1 : 0.6 }}
-            >
-              Calendar
-            </button>
+    <main style={{
+      minHeight: 'calc(100vh - 80px)',
+      overflow: 'visible',
+      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+      position: 'relative',
+      borderLeft: `8px solid ${theme.colors.primary}`,
+      borderRight: `8px solid ${theme.colors.primary}`
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.7) 50%, rgba(15, 23, 42, 0.5) 100%)',
+        pointerEvents: 'none'
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
+          <h1 style={styles.heading1}>Sessions</h1>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button 
+                onClick={() => { setViewMode('list'); setSelectedDate(null) }} 
+                style={{ ...styles.button.secondary, opacity: viewMode === 'list' ? 1 : 0.6 }}
+              >
+                List
+              </button>
+              <button 
+                onClick={() => setViewMode('calendar')} 
+                style={{ ...styles.button.secondary, opacity: viewMode === 'calendar' ? 1 : 0.6 }}
+              >
+                Calendar
+              </button>
+            </div>
+            <button onClick={() => setShowCreateModal(true)} style={styles.button.primary}>Create Session</button>
+            <button onClick={loadData} style={styles.button.secondary}>Refresh</button>
           </div>
-          <button onClick={() => setShowCreateModal(true)} style={styles.button.primary}>Create Session</button>
-          <button onClick={loadData} style={styles.button.secondary}>Refresh</button>
         </div>
-      </div>
 
-      {error && <div style={{ color: 'salmon', marginBottom: 12 }}>Error: {error}</div>}
+        {error && <div style={{ color: 'salmon', marginBottom: 12 }}>Error: {error}</div>}
 
-      {viewMode === 'calendar' ? (
-        <CalendarView
-          sessions={sessions}
-          currentMonth={currentMonth}
-          setCurrentMonth={setCurrentMonth}
-          selectedDate={selectedDate}
-          setSelectedDate={setSelectedDate}
-          getSessionsForDate={getSessionsForDate}
-          theme={theme}
-          styles={styles}
-        />
-      ) : (
-        <>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {displayedSessions.map(s => {
-              const showAllButtons = canEditOrDelete(s)
-          const dateTime = new Date(s.date_time)
-          const dateStr = dateTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          const timeStr = dateTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-          
-          return (
-            <div key={s.id} style={{ ...styles.card, padding: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={styles.heading2}>{s.title}</h3>
-                  <div style={{ color: theme.colors.text.tertiary, marginTop: 6 }}>{s.description}</div>
-                  <div style={{ color: theme.colors.text.tertiary, marginTop: 8, fontSize: '0.9em' }}>
-                    <div>{dateStr} at {timeStr}</div>
-                    <div style={{ marginTop: 4 }}>
-                      {getPlayerCount(s.id)} / {s.max_players ?? '—'} players
-                    </div>
-                    <div style={{ marginTop: 4 }}>
-                      GM: {gmNames[s.gm_id] || 'Loading...'}
+        {viewMode === 'calendar' ? (
+          <CalendarView
+            sessions={sessions}
+            currentMonth={currentMonth}
+            setCurrentMonth={setCurrentMonth}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            getSessionsForDate={getSessionsForDate}
+            theme={theme}
+            styles={styles}
+          />
+        ) : (
+          <>
+            <div style={{ display: 'grid', gap: 12 }}>
+              {displayedSessions.map(s => {
+                const showAllButtons = canEditOrDelete(s)
+                const dateTime = new Date(s.date_time)
+                const dateStr = dateTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                const timeStr = dateTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                const gmProfile = gmProfiles[s.gm_id]
+                
+                return (
+                  <div key={s.id} style={{ ...styles.card, padding: 12 }}>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                          <h3 style={{ ...styles.heading2, margin: 0 }}>{s.title}</h3>
+                          
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '6px 12px',
+                            backgroundColor: theme.colors.background.main,
+                            borderRadius: '20px',
+                            border: `1px solid ${theme.colors.border.primary}`,
+                            fontSize: '0.85em',
+                            color: theme.colors.text.secondary
+                          }}>
+                            📅 {dateStr} at {timeStr}
+                          </div>
+
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '6px 12px',
+                            backgroundColor: theme.colors.background.main,
+                            borderRadius: '20px',
+                            border: `1px solid ${theme.colors.border.primary}`,
+                            fontSize: '0.85em',
+                            color: theme.colors.text.secondary
+                          }}>
+                            👥 {getPlayerCount(s.id)} / {s.max_players ?? '—'} players
+                          </div>
+
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '6px 12px 6px 6px',
+                            backgroundColor: theme.colors.background.main,
+                            borderRadius: '20px',
+                            border: `1px solid ${theme.colors.border.primary}`,
+                            fontSize: '0.85em',
+                            color: theme.colors.text.secondary
+                          }}>
+                            {gmProfile?.profile_image ? (
+                              <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: theme.colors.background.secondary,
+                                flexShrink: 0
+                              }}>
+                                <img
+                                  src={gmProfile.profile_image}
+                                  alt={gmProfile.username}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    transform: `scale(${gmProfile.image_zoom || 1}) translate(${(gmProfile.image_position_x || 0) / 5}px, ${(gmProfile.image_position_y || 0) / 5}px)`
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                backgroundColor: theme.colors.background.secondary,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                color: theme.colors.text.secondary,
+                                flexShrink: 0,
+                                fontWeight: 'bold'
+                              }}>
+                                {gmNames[s.gm_id]?.charAt(0).toUpperCase() || '?'}
+                              </div>
+                            )}
+                            GM: {gmNames[s.gm_id] || 'Loading...'}
+                          </div>
+
+                          {isFull(s.id, s.max_players) && (
+                            <div style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#ff6b6b20',
+                              borderRadius: '20px',
+                              border: '1px solid #ff6b6b',
+                              fontSize: '0.85em',
+                              color: '#ff6b6b',
+                              fontWeight: '600'
+                            }}>
+                              Full
+                            </div>
+                          )}
+                        </div>
+
+                        {s.description && (
+                          <div style={{
+                            color: theme.colors.text.tertiary,
+                            fontSize: '0.9em',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 4,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {s.description}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: showAllButtons ? 6 : 8, flexShrink: 0 }}>
+                        <button
+                          onClick={() => { setDetailsSession(s); setShowDetailsModal(true) }}
+                          style={{ ...styles.button.secondary, padding: showAllButtons ? '6px 10px' : undefined, fontSize: showAllButtons ? '0.85em' : undefined, whiteSpace: 'nowrap' }}
+                        >
+                          Details
+                        </button>
+                        <button
+                          onClick={() => hasJoined(s.id) ? leaveSession(s.id) : joinSession(s.id)}
+                          disabled={joining[s.id] || (!hasJoined(s.id) && isFull(s.id, s.max_players))}
+                          style={{ ...styles.button.primary, padding: showAllButtons ? '6px 10px' : undefined, fontSize: showAllButtons ? '0.85em' : undefined, whiteSpace: 'nowrap' }}
+                        >
+                          {joining[s.id] ? 'Processing…' : hasJoined(s.id) ? 'Leave' : 'Join'}
+                        </button>
+                        {canEditOrDelete(s) && (
+                          <>
+                            <button
+                              onClick={() => { setEditingSession(s); setShowEditModal(true) }}
+                              style={{ ...styles.button.secondary, padding: '6px 10px', fontSize: '0.85em', whiteSpace: 'nowrap' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteSession(s.id)}
+                              style={{ ...styles.button.primary, background: '#ff6b6b', padding: '6px 10px', fontSize: '0.85em', whiteSpace: 'nowrap' }}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {isFull(s.id, s.max_players) && (
-                    <div style={{ color: '#ff6b6b', marginTop: 8, fontSize: '0.9em' }}>Session Full</div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: showAllButtons ? 6 : 8 }}>
-                  <button
-                    onClick={() => { setDetailsSession(s); setShowDetailsModal(true) }}
-                    style={{ ...styles.button.secondary, padding: showAllButtons ? '6px 10px' : undefined, fontSize: showAllButtons ? '0.85em' : undefined }}
-                  >
-                    Details
-                  </button>
-                  <button
-                    onClick={() => hasJoined(s.id) ? leaveSession(s.id) : joinSession(s.id)}
-                    disabled={joining[s.id] || (!hasJoined(s.id) && isFull(s.id, s.max_players))}
-                    style={{ ...styles.button.primary, padding: showAllButtons ? '6px 10px' : undefined, fontSize: showAllButtons ? '0.85em' : undefined }}
-                  >
-                    {joining[s.id] ? 'Processing…' : hasJoined(s.id) ? 'Leave' : 'Join'}
-                  </button>
-                  {canEditOrDelete(s) && (
-                    <>
-                      <button
-                        onClick={() => { setEditingSession(s); setShowEditModal(true) }}
-                        style={{ ...styles.button.secondary, padding: '6px 10px', fontSize: '0.85em' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteSession(s.id)}
-                        style={{ ...styles.button.primary, background: '#ff6b6b', padding: '6px 10px', fontSize: '0.85em' }}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </div>
+                )
+              })}
+              {displayedSessions.length === 0 && <div style={styles.card}>
+                {selectedDate ? `No sessions on this date.` : 'No sessions available. Click "Refresh" to reload.'}
+              </div>}
+            </div>
+
+            {!selectedDate && sessions.length > 6 && !showAllSessions && (
+              <div style={{ marginTop: 16, textAlign: 'center' }}>
+                <button onClick={() => setShowAllSessions(true)} style={styles.button.secondary}>
+                  Show More ({sessions.length - 6} more)
+                </button>
               </div>
-            </div>
-          )
-            })}
-            {displayedSessions.length === 0 && <div style={styles.card}>
-              {selectedDate ? `No sessions on this date.` : 'No sessions available. Click "Refresh" to reload.'}
-            </div>}
-          </div>
+            )}
 
-          {!selectedDate && sessions.length > 6 && !showAllSessions && (
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <button onClick={() => setShowAllSessions(true)} style={styles.button.secondary}>
-                Show More ({sessions.length - 6} more)
-              </button>
-            </div>
-          )}
+            {showAllSessions && sessions.length > 6 && (
+              <div style={{ marginTop: 16, textAlign: 'center' }}>
+                <button onClick={() => setShowAllSessions(false)} style={styles.button.secondary}>
+                  Show Less
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
-          {showAllSessions && sessions.length > 6 && (
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <button onClick={() => setShowAllSessions(false)} style={styles.button.secondary}>
-                Show Less
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Create Session Modal */}
       {showCreateModal && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 60
         }}>
           <div style={{ background: theme.colors.background.main, padding: 20, borderRadius: 8, width: 520 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h2 style={styles.heading2}>Create Session</h2>
               <button onClick={() => setShowCreateModal(false)} style={styles.button.primary}>Close</button>
             </div>
-
             <CreateSessionForm onCancel={() => setShowCreateModal(false)} onSubmit={createSession} loading={creating} theme={theme} />
           </div>
         </div>
       )}
 
-      {/* Edit Session Modal */}
       {showEditModal && editingSession && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 60
         }}>
           <div style={{ background: theme.colors.background.main, padding: 20, borderRadius: 8, width: 520 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h2 style={styles.heading2}>Edit Session</h2>
               <button onClick={() => { setShowEditModal(false); setEditingSession(null) }} style={styles.button.primary}>Close</button>
             </div>
-
             <EditSessionForm 
               session={editingSession}
               onCancel={() => { setShowEditModal(false); setEditingSession(null) }}
@@ -521,7 +603,6 @@ export default function SessionsPage() {
         </div>
       )}
 
-      {/* Session Details Modal */}
       {showDetailsModal && detailsSession && (
         <SessionDetailsModal
           session={detailsSession}
@@ -534,7 +615,6 @@ export default function SessionsPage() {
           styles={styles}
         />
       )}
-
     </main>
   )
 }
@@ -543,7 +623,7 @@ type SessionTemplate = {
   name: string
   title: string
   description: string
-  duration: number // hours
+  duration: number
   maxPlayers: number
   gameSystem: string
 }
@@ -591,9 +671,6 @@ const sessionTemplates: SessionTemplate[] = [
   }
 ]
 
-/* Inline CreateSessionForm uses native date + time inputs (calendar/time pickers on modern browsers).
-   It pre-fills with template defaults and validates required fields before calling onSubmit.
-*/
 function CreateSessionForm({ onCancel, onSubmit, loading, theme }: {
   onCancel: () => void
   onSubmit: (f: { title: string; description?: string; date: string; time: string; max_players?: number | null; game_system?: string }) => Promise<void>
@@ -603,7 +680,7 @@ function CreateSessionForm({ onCancel, onSubmit, loading, theme }: {
   const today = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   const isoDate = `${today.getUTCFullYear()}-${pad(today.getUTCMonth() + 1)}-${pad(today.getUTCDate())}`
-  const isoTime = '18:00' // 6pm default
+  const isoTime = '18:00'
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>('Custom')
   const [title, setTitle] = useState('')
@@ -694,7 +771,6 @@ function CreateSessionForm({ onCancel, onSubmit, loading, theme }: {
             />
           </label>
         </div>
-
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onCancel} style={{ padding: '8px 12px' }} disabled={loading}>Cancel</button>
           <button type="submit" style={{ padding: '8px 12px' }} disabled={loading}>
@@ -782,7 +858,6 @@ function EditSessionForm({ session, onCancel, onSubmit, loading }: {
             />
           </label>
         </div>
-
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" onClick={onCancel} style={{ padding: '8px 12px' }} disabled={loading}>Cancel</button>
           <button type="submit" style={{ padding: '8px 12px' }} disabled={loading}>
@@ -958,8 +1033,16 @@ function SessionDetailsModal({
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 70
     }}>
       <div style={{ background: theme.colors.background.main, padding: 24, borderRadius: 8, width: 520, maxHeight: '80vh', overflow: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
