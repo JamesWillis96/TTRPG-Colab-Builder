@@ -361,6 +361,7 @@ export default function ProfilePage() {
                 Role
               </label>
               <select
+                id="profile-role-indicator"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 style={{

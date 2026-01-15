@@ -65,6 +65,7 @@ export function WikiHeader() {
 
       {/* Right: Create button */}
       <button
+        id="wiki-create-button"
         onClick={() => openEditModal()}
         style={{
           padding: `${theme.spacing.sm} ${theme.spacing.md}`,

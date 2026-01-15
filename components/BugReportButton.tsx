@@ -91,6 +91,7 @@ export default function BugReportButton() {
   <>
     {/* Floating Action Button */}
     <button
+        id="bug-report-button"
         onClick={() => setIsOpen(true)}
         aria-label="Report a bug"
         style={{

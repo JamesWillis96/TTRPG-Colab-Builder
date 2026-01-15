@@ -44,6 +44,7 @@ export default function Navbar() {
     (!isMobile) ? (
       //Layout for tablets and desktops
       <nav
+        id="navbar-container"
         style={{
           padding: '0.5rem 1rem',
           background: theme.colors.background.secondary,
@@ -70,13 +71,13 @@ export default function Navbar() {
 
         {/* Navigation Links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link href="/sessions" style={{ color: theme.colors.text.primary }}>
+          <Link id="sessions-nav-link" href="/sessions" style={{ color: theme.colors.text.primary }}>
             Sessions
           </Link>
           <Link href="/tables" style={{ color: theme.colors.text.primary }}>
             Tables
           </Link>
-          <Link href="/wiki" style={{ color: theme.colors.text.primary }}>
+          <Link id="wiki-nav-link" href="/wiki" style={{ color: theme.colors.text.primary }}>
             Wiki
           </Link>
           <Link href="/map" style={{ color: theme.colors.text.primary }}>

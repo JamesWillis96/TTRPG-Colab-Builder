@@ -306,6 +306,7 @@ export default function SessionsPage() {
   if (loading || authLoading) return <div style={{ padding: 24 }}>Loading...</div>
   if (!user) return null
 
+
   return (
     <main style={{
       minHeight: 'calc(100vh - 80px)',
