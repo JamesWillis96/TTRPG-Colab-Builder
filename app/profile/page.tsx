@@ -721,8 +721,33 @@ export default function ProfilePage() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => setShowImageEditor(false)}
+                    onClick={async () => {
+                      setSaving(true)
+                      setMessage('')
+                      try {
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({ 
+                            profile_image: profileImage || null,
+                            image_zoom: imageZoom,
+                            image_position_x: imagePositionX,
+                            image_position_y: imagePositionY
+                          })
+                          .eq('id', user!.id)
+
+                        if (error) throw error
+
+                        setMessage('Profile image updated successfully!')
+                        setTimeout(() => setMessage(''), 3000)
+                        setShowImageEditor(false)
+                      } catch (error: any) {
+                        setMessage('Error: ' + error.message)
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
                     type="button"
+                    disabled={saving}
                     style={{
                       flex: 1,
                       padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
@@ -730,12 +755,13 @@ export default function ProfilePage() {
                       color: '#fff',
                       border: 'none',
                       borderRadius: theme.borderRadius,
-                      cursor: 'pointer',
+                      cursor: saving ? 'not-allowed' : 'pointer',
                       fontSize: '14px',
                       fontWeight: 600,
+                      opacity: saving ? 0.6 : 1,
                     }}
                   >
-                    Apply Changes
+                    {saving ? 'Saving...' : 'Apply Changes'}
                   </button>
                 </div>
               </div>

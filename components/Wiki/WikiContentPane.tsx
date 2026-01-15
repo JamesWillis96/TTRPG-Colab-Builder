@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useWiki } from '../../contexts/WikiContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -8,6 +8,16 @@ import { getMarkdownThemeCSS } from '../../lib/markdownThemes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { calculateReadingTime } from '../../lib/wiki'
+import { supabase } from '../../lib/supabase'
+
+type AuthorProfile = {
+  id: string
+  username: string
+  profile_image?: string
+  image_zoom?: number
+  image_position_x?: number
+  image_position_y?: number
+}
 
 /**
  * WikiContentPane - Right side content display
@@ -40,6 +50,36 @@ export function WikiContentPane() {
   const { theme } = useTheme()
   const { user, profile } = useAuth()
   const { selectedEntry, openEditModal, deleteEntry, openRevisionsModal } = useWiki()
+  const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
+
+  // Fetch author profile when selected entry changes
+  useEffect(() => {
+    if (!selectedEntry?.author_id) {
+      setAuthorProfile(null)
+      return
+    }
+
+    const fetchAuthorProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id,username,profile_image,image_zoom,image_position_x,image_position_y')
+        .eq('id', selectedEntry.author_id)
+        .single()
+
+      if (!error && data) {
+        setAuthorProfile({
+          id: data.id,
+          username: data.username,
+          profile_image: data.profile_image || undefined,
+          image_zoom: data.image_zoom || 1,
+          image_position_x: data.image_position_x || 0,
+          image_position_y: data.image_position_y || 0
+        })
+      }
+    }
+
+    fetchAuthorProfile()
+  }, [selectedEntry?.author_id])
 
   if (!selectedEntry) {
     return (
@@ -96,8 +136,65 @@ export function WikiContentPane() {
                 gap: theme.spacing.lg,
                 fontSize: '14px',
                 color: theme.colors.text.secondary,
+                alignItems: 'center',
+                flexWrap: 'wrap'
               }}
             >
+              {/* Author bubble */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 12px 6px 6px',
+                backgroundColor: theme.colors.background.main,
+                borderRadius: '20px',
+                border: `1px solid ${theme.colors.border.primary}`,
+                fontSize: '0.85em',
+                color: theme.colors.text.secondary
+              }}>
+                {authorProfile?.profile_image ? (
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme.colors.background.secondary,
+                    flexShrink: 0
+                  }}>
+                    <img
+                      src={authorProfile.profile_image}
+                      alt={authorProfile.username}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        transform: `scale(${authorProfile.image_zoom || 1}) translate(${(authorProfile.image_position_x || 0) / 5}px, ${(authorProfile.image_position_y || 0) / 5}px)`
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: theme.colors.background.secondary,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    color: theme.colors.text.secondary,
+                    flexShrink: 0,
+                    fontWeight: 'bold'
+                  }}>
+                    {authorProfile?.username?.charAt(0).toUpperCase() || '?'}
+                  </div>
+                )}
+                {authorProfile?.username || 'Loading...'}
+              </div>
+              
               <span>Category: {selectedEntry.category}</span>
               <span>
                 Updated: {new Date(selectedEntry.updated_at).toLocaleDateString()}
