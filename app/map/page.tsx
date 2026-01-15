@@ -1,4 +1,3 @@
-// Fixed potential null issue with searchParams
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -9,41 +8,84 @@ import { supabase } from '../../lib/supabase'
 
 type POI = {
   id: string
-  x: number  // Stored as ratio (0-1) of map width
-  y: number  // Stored as ratio (0-1) of map height
+  x: number
+  y: number
   title: string
   wiki_page_id?: string
   created_by?: string
   category?: string
+  visibility?: string
+  notes?: string
+  view_count?: number
+  discovered_at?: string
+  discovered_in_session_id?: string
+}
+
+type WikiPage = {
+  id: string
+  title: string
+  slug: string
+  content: string
+  category: string
+  author_id: string
+  updated_at: string
 }
 
 export default function MapEditorPage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const { theme, styles } = useTheme()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [instructionsOpen, setInstructionsOpen] = useState(true)
-  const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>({ location: true, npc: true, faction: true })
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [mapLoading, setMapLoading] = useState(true)  // Added for map loading state
+
+  // UI State
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false)
+  const [selectedPoi, setSelectedPoi] = useState<POI | null>(null)
+  const [selectedWikiPage, setSelectedWikiPage] = useState<WikiPage | null>(null)
+  const [playerViewMode, setPlayerViewMode] = useState(false)
+  const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>({
+    location: true,
+    npc: true,
+    faction: true,
+    lore: true,
+    item: true
+  })
+  const [showCreatePopup, setShowCreatePopup] = useState(false)
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 })
+  const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Map State
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.2)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [mapDimensions, setMapDimensions] = useState({ width: 1920, height: 1080 })
+  const [mapLoading, setMapLoading] = useState(true)
+
+  // POI State
   const [pois, setPois] = useState<POI[]>([])
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [newPoiPosition, setNewPoiPosition] = useState({ x: 0, y: 0 })
   const [poiTitle, setPoiTitle] = useState('')
   const [poiCategory, setPoiCategory] = useState('location')
-  const [loading, setLoading] = useState(true)
-  const [mapDimensions, setMapDimensions] = useState({ width: 1920, height: 1080 })
+  const [poiVisibility, setPoiVisibility] = useState('public')
   const [movingPoiId, setMovingPoiId] = useState<string | null>(null)
-  const [movingOffset, setMovingOffset] = useState<{x: number, y: number}>({x: 0, y: 0})
+  const [movingOffset, setMovingOffset] = useState({ x: 0, y: 0 })
+
+  // Editing State
+  const [isEditingWiki, setIsEditingWiki] = useState(false)
+  const [editedContent, setEditedContent] = useState('')
+
+  // Touch State
   const [isPinching, setIsPinching] = useState(false)
   const [lastTouchDistance, setLastTouchDistance] = useState(0)
-  const [lastTouchCenter, setLastTouchCenter] = useState({x: 0, y: 0})
+  const [lastTouchCenter, setLastTouchCenter] = useState({ x: 0, y: 0 })
 
+  const isGM = profile?.role === 'gm' || profile?.role === 'admin'
+
+  // Auth & Load
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login')
@@ -53,46 +95,47 @@ export default function MapEditorPage() {
     }
   }, [user, authLoading, router])
 
-  // Handle POI query parameter for zooming and centering
+  // Focus POI from query param
   useEffect(() => {
     const poiId = searchParams?.get('poi')
     if (poiId && pois.length > 0 && mapDimensions.width > 0 && containerRef.current) {
       const poi = pois.find(p => p.id === poiId)
       if (poi) {
         const container = containerRef.current
-        const containerWidth = container.clientWidth
-        const containerHeight = container.clientHeight
         const newScale = 0.3
         const poiPixelX = poi.x * mapDimensions.width
         const poiPixelY = poi.y * mapDimensions.height
-        const newPositionX = containerWidth / 2 - poiPixelX * newScale
-        const newPositionY = containerHeight / 2 - poiPixelY * newScale
+        const newPositionX = container.clientWidth / 2 - poiPixelX * newScale
+        const newPositionY = container.clientHeight / 2 - poiPixelY * newScale
         setScale(newScale)
         setPosition({ x: newPositionX, y: newPositionY })
+        handleSelectPoi(poi)
       }
     }
   }, [searchParams, pois, mapDimensions])
 
-  // Load map dimensions and fit to screen
+  // Load map image dimensions
   const loadMapDimensions = () => {
     const img = new Image()
     img.onload = () => {
       setMapDimensions({ width: img.width, height: img.height })
       if (containerRef.current) {
         const container = containerRef.current
-        const containerWidth = container.clientWidth
-        const containerHeight = container.clientHeight
-        const fitScale = Math.min(containerWidth / img.width, containerHeight / img.height)
-        const fitX = (containerWidth - img.width * fitScale) / 2
-        const fitY = (containerHeight - img.height * fitScale) / 2
+        const fitScale = Math.min(
+          container.clientWidth / img.width,
+          container.clientHeight / img.height
+        )
+        const fitX = (container.clientWidth - img.width * fitScale) / 2
+        const fitY = (container.clientHeight - img.height * fitScale) / 2
         setScale(fitScale)
         setPosition({ x: fitX, y: fitY })
       }
-      setMapLoading(false)  // Set loading to false when image loads
+      setMapLoading(false)
     }
     img.src = '/world-map.png'
   }
 
+  // Load POIs
   const loadPOIs = async () => {
     setLoading(true)
     try {
@@ -100,11 +143,8 @@ export default function MapEditorPage() {
         .from('map_pois')
         .select('*')
         .order('created_at', { ascending: true })
-      if (error) {
-        console.error('Error loading POIs:', error)
-      } else {
-        setPois(data || [])
-      }
+      if (error) throw error
+      setPois(data || [])
     } catch (error: any) {
       console.error('Error loading POIs:', error)
     } finally {
@@ -112,15 +152,119 @@ export default function MapEditorPage() {
     }
   }
 
-  const getPOIIcon = (category: string) => {
-    switch (category) {
-      case 'npc': return '👤'
-      case 'faction': return '🛡️'
-      default: return '📍'
+  // Handle POI selection
+  const handleSelectPoi = async (poi: POI) => {
+    setSelectedPoi(poi)
+    setRightSidebarOpen(true)
+    setIsEditingWiki(false)
+
+    // Increment view count
+    await supabase
+      .from('map_pois')
+      .update({ 
+        view_count: (poi.view_count || 0) + 1 
+      })
+      .eq('id', poi.id)
+
+    // Load wiki page
+    if (poi.wiki_page_id) {
+      const { data, error } = await supabase
+        .from('wiki_pages')
+        .select('*')
+        .eq('id', poi.wiki_page_id)
+        .single()
+      if (!error && data) {
+        setSelectedWikiPage(data)
+        setEditedContent(data.content)
+      }
     }
   }
 
-  // Zoom with 5% increments
+  // Update POI visibility
+  const updatePoiVisibility = async (poiId: string, newVisibility: string) => {
+    try {
+      const { error } = await supabase
+        .from('map_pois')
+        .update({ visibility: newVisibility })
+        .eq('id', poiId)
+      
+      if (!error) {
+        setPois(pois.map(p => p.id === poiId ? { ...p, visibility: newVisibility } : p))
+        if (selectedPoi?.id === poiId) {
+          setSelectedPoi({ ...selectedPoi, visibility: newVisibility })
+        }
+      }
+    } catch (error: any) {
+      console.error('Error updating visibility:', error)
+    }
+  }
+
+  // Save wiki content
+  const saveWikiContent = async () => {
+    if (!selectedWikiPage) return
+    
+    try {
+      const { error } = await supabase
+        .from('wiki_pages')
+        .update({ content: editedContent })
+        .eq('id', selectedWikiPage.id)
+      
+      if (!error) {
+        setSelectedWikiPage({ ...selectedWikiPage, content: editedContent })
+        setIsEditingWiki(false)
+      }
+    } catch (error: any) {
+      alert('Error saving content: ' + error.message)
+    }
+  }
+
+  // Get POI icon by category
+  const getPOIIcon = (category: string) => {
+    switch (category) {
+      case 'npc':
+      case 'player character':
+        return '👤'
+      case 'faction':
+        return '🛡️'
+      case 'item':
+        return '⚔️'
+      case 'lore':
+        return '📜'
+      default:
+        return '📍'
+    }
+  }
+
+  // Get visibility badge
+  const getVisibilityBadge = (visibility?: string) => {
+    switch (visibility) {
+      case 'gm_only':
+        return { icon: '🔒', label: 'GM Only', color: '#dc2626' }
+      case 'rumored':
+        return { icon: '❓', label: 'Rumored', color: '#f59e0b' }
+      default:
+        return { icon: '👁️', label: 'Public', color: '#10b981' }
+    }
+  }
+
+  // Filter POIs based on visibility and player view mode
+  const getVisiblePois = () => {
+    return pois.filter(poi => {
+      // Category filter
+      if (!visibleCategories[poi.category || 'location']) return false
+      
+      // Search filter
+      if (searchQuery && !poi.title.toLowerCase().includes(searchQuery.toLowerCase())) return false
+      
+      // Visibility filter
+      const vis = poi.visibility || 'public'
+      if (playerViewMode && vis === 'gm_only') return false
+      
+      return true
+    })
+  }
+
+  // Map interactions
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     if (!containerRef.current) return
@@ -137,9 +281,8 @@ export default function MapEditorPage() {
     setPosition({ x: newX, y: newY })
   }
 
-  // Panning
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || movingPoiId) return
     setIsDragging(true)
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
   }
@@ -147,13 +290,40 @@ export default function MapEditorPage() {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return
     setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
+
+    if (movingPoiId && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+      const mapX = (mouseX - position.x) / scale
+      const mapY = (mouseY - position.y) / scale
+      const ratioX = mapX / mapDimensions.width
+      const ratioY = mapY / mapDimensions.height
+      setMovingOffset({ x: ratioX, y: ratioY })
+    }
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = async () => {
     setIsDragging(false)
+    if (movingPoiId) {
+      try {
+        const { error } = await supabase
+          .from('map_pois')
+          .update({ x: movingOffset.x, y: movingOffset.y })
+          .eq('id', movingPoiId)
+        if (!error) {
+          setPois(
+            pois.map(p =>
+              p.id === movingPoiId ? { ...p, x: movingOffset.x, y: movingOffset.y } : p
+            )
+          )
+        }
+      } catch {}
+      setMovingPoiId(null)
+    }
   }
 
-  // Touch helpers
+  // Touch handlers
   const getTouchDistance = (touches: React.TouchList) => {
     if (touches.length < 2) return 0
     const dx = touches[0].clientX - touches[1].clientX
@@ -169,7 +339,6 @@ export default function MapEditorPage() {
     }
   }
 
-  // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       setIsDragging(true)
@@ -182,7 +351,7 @@ export default function MapEditorPage() {
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault() // Prevent scrolling
+    e.preventDefault()
     if (e.touches.length === 1 && isDragging) {
       setPosition({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y })
     } else if (e.touches.length === 2 && isPinching) {
@@ -210,9 +379,10 @@ export default function MapEditorPage() {
     }
   }
 
-  // Add POI on right-click
+  // Right-click to create POI
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
+    if (!isGM) return // Only GMs can create POIs
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
     const clickX = e.clientX - rect.left
@@ -222,8 +392,8 @@ export default function MapEditorPage() {
     const ratioX = mapX / mapDimensions.width
     const ratioY = mapY / mapDimensions.height
     setNewPoiPosition({ x: ratioX, y: ratioY })
-    setShowCreateModal(true)
-    setPoiTitle('')
+    setPopupPosition({ x: e.clientX, y: e.clientY })
+    setShowCreatePopup(true)
   }
 
   // Create POI
@@ -243,6 +413,7 @@ export default function MapEditorPage() {
         .select()
         .single()
       if (wikiError) throw wikiError
+
       const { data: newPoi, error: poiError } = await supabase
         .from('map_pois')
         .insert({
@@ -251,91 +422,71 @@ export default function MapEditorPage() {
           title: poiTitle,
           wiki_page_id: wikiPage.id,
           created_by: user.id,
-          category: poiCategory
+          category: poiCategory,
+          visibility: poiVisibility
         })
         .select()
         .single()
       if (poiError) throw poiError
+
       setPois([...pois, newPoi])
-      setShowCreateModal(false)
+      setShowCreatePopup(false)
       setPoiTitle('')
+      setPoiVisibility('public')
+      handleSelectPoi(newPoi)
     } catch (error: any) {
       alert('Error creating POI: ' + error.message)
     }
   }
 
   // Delete POI
-  const handleDeletePOI = async (poi: POI) => {
-    if (poi.created_by !== user?.id) {
+  const handleDeletePOI = async () => {
+    if (!selectedPoi) return
+    if (selectedPoi.created_by !== user?.id && !isGM) {
       alert('You can only delete POIs you created!')
       return
     }
-    if (!confirm('Delete this POI?')) return
+    if (!confirm(`Delete "${selectedPoi.title}"?`)) return
     try {
-      const { error } = await supabase
-        .from('map_pois')
-        .delete()
-        .eq('id', poi.id)
+      const { error } = await supabase.from('map_pois').delete().eq('id', selectedPoi.id)
       if (error) throw error
-      setPois(pois.filter(p => p.id !== poi.id))
+      setPois(pois.filter(p => p.id !== selectedPoi.id))
+      setRightSidebarOpen(false)
+      setSelectedPoi(null)
+      setSelectedWikiPage(null)
     } catch (error: any) {
       alert('Error deleting POI: ' + error.message)
     }
   }
 
-  // Reset to fit view
+  // Reset view to fit
   const resetView = () => {
     if (containerRef.current) {
       const container = containerRef.current
-      const containerWidth = container.clientWidth
-      const containerHeight = container.clientHeight
-      const fitScale = Math.min(containerWidth / mapDimensions.width, containerHeight / mapDimensions.height)
-      const fitX = (containerWidth - mapDimensions.width * fitScale) / 2
-      const fitY = (containerHeight - mapDimensions.height * fitScale) / 2
+      const fitScale = Math.min(
+        container.clientWidth / mapDimensions.width,
+        container.clientHeight / mapDimensions.height
+      )
+      const fitX = (container.clientWidth - mapDimensions.width * fitScale) / 2
+      const fitY = (container.clientHeight - mapDimensions.height * fitScale) / 2
       setScale(fitScale)
       setPosition({ x: fitX, y: fitY })
     }
   }
 
-  // Moving POI
-  const handleMapMouseMove = (e: React.MouseEvent) => {
-    if (!movingPoiId) return
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
-    const mapX = (mouseX - position.x) / scale
-    const mapY = (mouseY - position.y) / scale
-    const ratioX = mapX / mapDimensions.width
-    const ratioY = mapY / mapDimensions.height
-    setMovingOffset({ x: ratioX, y: ratioY })
-  }
-
-  const handleMapMouseUp = async () => {
-    if (!movingPoiId) return
-    const poi = pois.find(p => p.id === movingPoiId)
-    if (!poi) return
-    try {
-      const { error } = await supabase
-        .from('map_pois')
-        .update({ x: movingOffset.x, y: movingOffset.y })
-        .eq('id', movingPoiId)
-      if (!error) {
-        setPois(pois.map(p => p.id === movingPoiId ? { ...p, x: movingOffset.x, y: movingOffset.y } : p))
-      }
-    } catch {}
-    setMovingPoiId(null)
-  }
+  const visiblePois = getVisiblePois()
 
   if (authLoading || loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: 'calc(100vh - 80px)',
-        color: theme.colors.text.secondary
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: 'calc(100vh - 80px)',
+          color: theme.colors.text.secondary
+        }}
+      >
         Loading...
       </div>
     )
@@ -344,18 +495,223 @@ export default function MapEditorPage() {
   if (!user) return null
 
   return (
-    <main style={{
-      height: 'calc(100vh - 55px)',
-      overflow: 'hidden',
-      position: 'relative',
-      background: theme.colors.background.main
-    }}>
-      {/* Filter Dropdown */}
-      <div style={{ position: 'absolute', top: '2rem', left: '2rem', zIndex: 10 }}>
-        <button
-          onClick={() => setFilterOpen(!filterOpen)}
+    <main
+      style={{
+        height: 'calc(100vh - 55px)',
+        overflow: 'hidden',
+        position: 'relative',
+        background: theme.colors.background.main,
+        display: 'flex'
+      }}
+    >
+      {/* Left Sidebar - Filters & Search */}
+      <div
+        style={{
+          width: leftSidebarOpen ? '280px' : '0px',
+          height: '100%',
+          background: theme.colors.background.secondary,
+          borderRight: `1px solid ${theme.colors.border.primary}`,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          transition: 'width 0.3s ease',
+          zIndex: 20
+        }}
+      >
+        <div
           style={{
-            padding: '0.5rem 1.8rem',
+            padding: '1rem',
+            borderBottom: `1px solid ${theme.colors.border.primary}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <h3 style={{ ...styles.heading1, margin: 0 }}>📍 Locations</h3>
+          <button
+            onClick={() => setLeftSidebarOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: theme.colors.text.secondary,
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              padding: 0
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Search */}
+        <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}` }}>
+          <input
+            type="text"
+            placeholder="Search locations..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 8px',
+              fontSize: '0.875rem',
+              background: theme.colors.background.main,
+              color: theme.colors.text.primary,
+              border: `1px solid ${theme.colors.border.secondary}`,
+              borderRadius: theme.borderRadius,
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
+
+        {/* Category Filters */}
+        <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}` }}>
+          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+            Categories
+          </label>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {Object.entries(visibleCategories).map(([category, visible]) => (
+              <button
+                key={category}
+                onClick={() => setVisibleCategories({ ...visibleCategories, [category]: !visible })}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '0.7rem',
+                  background: visible ? theme.colors.primary : theme.colors.background.tertiary,
+                  color: visible ? 'white' : theme.colors.text.secondary,
+                  border: `1px solid ${theme.colors.border.secondary}`,
+                  borderRadius: theme.borderRadius,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Visibility Filter */}
+        {isGM && (
+          <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}` }}>
+            <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+              Visibility
+            </label>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={!playerViewMode}
+                onChange={() => setPlayerViewMode(!playerViewMode)}
+                id="gm-view"
+                style={{ cursor: 'pointer' }}
+              />
+              <label htmlFor="gm-view" style={{ fontSize: '0.875rem', color: theme.colors.text.primary, cursor: 'pointer' }}>
+                Show GM-only POIs
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* POI List */}
+        <div
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            padding: '0.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px'
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', color: theme.colors.text.tertiary, padding: '0.5rem 0.25rem' }}>
+            {visiblePois.length} location{visiblePois.length !== 1 ? 's' : ''}
+          </div>
+          {visiblePois.length === 0 ? (
+            <div style={{ color: theme.colors.text.tertiary, fontSize: '0.875rem', padding: '0.5rem', fontStyle: 'italic' }}>
+              No locations found
+            </div>
+          ) : (
+            visiblePois.map(poi => {
+              const visBadge = getVisibilityBadge(poi.visibility)
+              return (
+                <button
+                  key={poi.id}
+                  onClick={() => handleSelectPoi(poi)}
+                  style={{
+                    padding: '8px',
+                    textAlign: 'left',
+                    background: selectedPoi?.id === poi.id ? theme.colors.primary : theme.colors.background.main,
+                    color: selectedPoi?.id === poi.id ? 'white' : theme.colors.text.primary,
+                    border: `1px solid ${theme.colors.border.secondary}`,
+                    borderRadius: theme.borderRadius,
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    opacity: poi.visibility === 'rumored' ? 0.7 : 1
+                  }}
+                  onMouseEnter={() => setHoveredPoiId(poi.id)}
+                  onMouseLeave={() => setHoveredPoiId(null)}
+                >
+                  <span>{getPOIIcon(poi.category || 'location')}</span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {poi.title}
+                  </span>
+                  {isGM && poi.visibility !== 'public' && (
+                    <span style={{ fontSize: '0.7rem' }}>{visBadge.icon}</span>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
+
+        {/* Create POI Button */}
+        {isGM && (
+          <div style={{ padding: '0.75rem', borderTop: `1px solid ${theme.colors.border.primary}` }}>
+            <button
+              onClick={() => {
+                if (containerRef.current) {
+                  const rect = containerRef.current.getBoundingClientRect()
+                  const centerX = (rect.width / 2 - position.x) / scale
+                  const centerY = (rect.height / 2 - position.y) / scale
+                  setNewPoiPosition({
+                    x: centerX / mapDimensions.width,
+                    y: centerY / mapDimensions.height
+                  })
+                  setPopupPosition({ x: rect.width / 2, y: rect.height / 2 })
+                }
+                setShowCreatePopup(true)
+              }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                background: theme.colors.primary,
+                color: 'white',
+                border: 'none',
+                borderRadius: theme.borderRadius,
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: 'bold'
+              }}
+            >
+              + New Location
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Sidebar Toggle */}
+      {!leftSidebarOpen && (
+        <button
+          onClick={() => setLeftSidebarOpen(true)}
+          style={{
+            position: 'absolute',
+            left: '0.5rem',
+            top: '0.5rem',
+            zIndex: 19,
+            padding: '0.5rem 0.75rem',
             background: theme.colors.background.secondary,
             border: `1px solid ${theme.colors.border.primary}`,
             borderRadius: theme.borderRadius,
@@ -364,211 +720,24 @@ export default function MapEditorPage() {
             fontSize: '0.875rem'
           }}
         >
-          Filter ▼
+          ☰
         </button>
-        {filterOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            marginTop: '0.25rem',
-            zIndex: 10,
-            padding: 0,
-            background: 'transparent',
-            border: 'none'
-          }}>
-            {Object.keys(visibleCategories).map(category => (
-              <button
-                key={category}
-                onClick={() => setVisibleCategories({ ...visibleCategories, [category]: !visibleCategories[category] })}
-                style={{
-                  display: 'block',
-                  marginBottom: '0.25rem',
-                  marginTop: '0.25rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 'bold',
-                  background: visibleCategories[category] ? theme.colors.primary : theme.colors.background.tertiary,
-                  border: `1px solid ${theme.colors.border.secondary}`,
-                  borderRadius: theme.borderRadius,
-                  padding: '0.25rem',
-                  paddingLeft: '1.5rem',
-                  paddingRight: '1.5rem',
-                  cursor: 'pointer',
-                  color: visibleCategories[category] ? 'white' : theme.colors.text.secondary,
-                  width: '100%',
-                  textAlign: 'left'
-                }}
-              >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Controls Overlay */}
-      <div style={{
-        position: 'absolute',
-        bottom: '2rem',
-        right: '2rem',
-        zIndex: 10,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.5rem'
-      }}>
-        <div style={{
-          background: theme.colors.background.secondary,
-          border: `1px solid ${theme.colors.border.primary}`,
-          borderRadius: theme.borderRadius,
-          padding: '0.75rem',
-          color: theme.colors.text.primary,
-          fontSize: '0.875rem',
-          fontWeight: 'bold',
-          textAlign: 'center'
-        }}>
-          Zoom: {Math.round(scale * 100)}%
-        </div>
-        <div style={{
-          background: theme.colors.background.secondary,
-          border: `1px solid ${theme.colors.border.primary}`,
-          borderRadius: theme.borderRadius,
-          padding: '0.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.5rem'
-        }}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => setScale(Math.min(5, scale + 0.05))}
-              style={{
-                width: 'calc(50% - 0.25rem)',
-                height: 'calc(50% - 0.25rem)',
-                background: theme.colors.background.tertiary,
-                color: theme.colors.text.primary,
-                border: `1px solid ${theme.colors.border.secondary}`,
-                borderRadius: theme.borderRadius,
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              +
-            </button>
-            <button
-              onClick={() => setScale(Math.max(0.1, scale - 0.05))}
-              style={{
-                width: 'calc(50% - 0.25rem)',
-                height: 'calc(50% - 0.25rem)',
-                background: theme.colors.background.tertiary,
-                color: theme.colors.text.primary,
-                border: `1px solid ${theme.colors.border.secondary}`,
-                borderRadius: theme.borderRadius,
-                cursor: 'pointer',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              −
-            </button>
-          </div>
-          <button
-            onClick={resetView}
-            style={{
-              width: '100%',
-              height: 'calc(50% - 0.25rem)',
-              background: theme.colors.background.tertiary,
-              color: theme.colors.text.primary,
-              border: `1px solid ${theme.colors.border.secondary}`,
-              borderRadius: theme.borderRadius,
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            Reset
-          </button>
-        </div>
-      </div>
-
-      {/* Instructions Overlay */}
-      <div 
-        onClick={() => setInstructionsOpen(false)}
-        style={{
-          position: 'absolute',
-          bottom: '5.5rem',
-          left: '2rem',
-          zIndex: 10,
-          background: theme.colors.background.secondary,
-          border: `1px solid ${theme.colors.border.primary}`,
-          borderRadius: theme.borderRadius,
-          padding: '0.5rem',
-          color: theme.colors.text.secondary,
-          fontSize: '0.875rem',
-          cursor: 'pointer',
-          transform: instructionsOpen ? 'scale(1)' : 'scale(0)',
-          transformOrigin: 'bottom left',
-          transition: 'transform 0.3s ease',
-          pointerEvents: instructionsOpen ? 'auto' : 'none'
-        }}
-        title="Click to hide instructions"
-      >
-        <div>🖱️ Click and drag to pan</div>
-        <div>🔍 Scroll to zoom</div>
-        <div>� Touch and drag to pan (mobile)</div>
-        <div>🤏 Pinch to zoom (mobile)</div>
-        <div>�📍 Right-click to add pin</div>
-        <div>✋ Ctrl+Click and drag a pin to move it</div>
-        <div>🖱️ Click a pin to open its wiki page</div>
-        <div style={{ textAlign: 'center', marginTop: '0.5rem', color: theme.colors.text.muted }}>
-          -click to hide-
-        </div>
-      </div>
-
-      {/* Compass Icon */}
-      <div
-        onClick={() => setInstructionsOpen(!instructionsOpen)}
-        style={{
-          position: 'absolute',
-          bottom: '1rem',
-          left: '1rem',
-          zIndex: 10,
-          padding: '0.5rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: 1,
-          pointerEvents: 'auto'
-        }}
-        title={instructionsOpen ? "Click to hide instructions" : "Click to show instructions"}
-      >
-        <span style={{ fontSize: '3rem' }}>🧭</span>
-      </div>
+      )}
 
       {/* Map Container */}
       <div
         ref={containerRef}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
-        onMouseMove={e => { handleMouseMove(e); handleMapMouseMove(e); }}
-        onMouseUp={e => { handleMouseUp(); handleMapMouseUp(); }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onContextMenu={handleContextMenu}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         style={{
-          width: '100%',
-          height: '100%',
+          flex: 1,
           cursor: isDragging ? 'grabbing' : 'grab',
           overflow: 'hidden',
           position: 'relative',
@@ -576,231 +745,523 @@ export default function MapEditorPage() {
           backgroundPosition: `${position.x}px ${position.y}px`,
           backgroundSize: `${mapDimensions.width * scale}px ${mapDimensions.height * scale}px`,
           backgroundRepeat: 'no-repeat',
-          touchAction: 'none' // Prevent default touch behaviors
+          touchAction: 'none'
         }}
       >
         {/* POI Markers */}
-        {pois.map(poi => (
-          visibleCategories[poi.category || 'location'] && (
-            <POIMarker
+        {visiblePois.map(poi => {
+          const visBadge = getVisibilityBadge(poi.visibility)
+          const pixelX = poi.x * mapDimensions.width
+          const pixelY = poi.y * mapDimensions.height
+          const isMoving = movingPoiId === poi.id
+          const markerX = isMoving ? movingOffset.x * mapDimensions.width : pixelX
+          const markerY = isMoving ? movingOffset.y * mapDimensions.height : pixelY
+          const isHovered = hoveredPoiId === poi.id
+          const isSelected = selectedPoi?.id === poi.id
+
+          return (
+            <div
               key={poi.id}
-              poi={poi}
-              scale={scale}
-              position={position}
-              mapDimensions={mapDimensions}
-              onDelete={handleDeletePOI}
-              router={router}
-              canDelete={poi.created_by === user?.id}
-              movingPoiId={movingPoiId}
-              setMovingPoiId={setMovingPoiId}
-              movingOffset={movingOffset}
-              setMovingOffset={setMovingOffset}
-              icon={getPOIIcon(poi.category || 'location')}
-            />
+              style={{
+                position: 'absolute',
+                left: `${markerX * scale + position.x}px`,
+                top: `${markerY * scale + position.y}px`,
+                transform: `translate(-50%, -100%) scale(${scale})`,
+                transformOrigin: 'center bottom',
+                zIndex: isSelected ? 10 : 5,
+                cursor: isMoving ? 'grabbing' : 'pointer',
+                opacity: poi.visibility === 'rumored' ? 0.6 : isMoving ? 0.7 : 1
+              }}
+              onMouseEnter={() => setHoveredPoiId(poi.id)}
+              onMouseLeave={() => setHoveredPoiId(null)}
+              onMouseDown={e => {
+                if (e.ctrlKey && isGM) {
+                  e.stopPropagation()
+                  setMovingPoiId(poi.id)
+                  setMovingOffset({ x: poi.x, y: poi.y })
+                }
+              }}
+              onClick={e => {
+                if (e.ctrlKey) return
+                e.stopPropagation()
+                handleSelectPoi(poi)
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '6rem',
+                  filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.8))`,
+                  transition: 'transform 0.2s',
+                  transform: isHovered || isSelected ? 'scale(1.3)' : 'scale(1)',
+                  border: poi.visibility === 'gm_only' && isGM ? '4px solid #dc2626' : 'none',
+                  borderRadius: '50%',
+                  position: 'relative'
+                }}
+              >
+                {getPOIIcon(poi.category || 'location')}
+                {poi.visibility === 'rumored' && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '-10px',
+                    fontSize: '2.5rem',
+                    background: '#f59e0b',
+                    borderRadius: '50%',
+                    width: '30px',
+                    height: '30px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    ❓
+                  </div>
+                )}
+              </div>
+              {(isHovered || isSelected) && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    marginTop: '0.25rem',
+                    padding: '0.5rem 0.75rem',
+                    background: theme.colors.background.secondary,
+                    border: `2px solid ${theme.colors.primary}`,
+                    borderRadius: theme.borderRadius,
+                    color: theme.colors.text.primary,
+                    fontSize: '2rem',
+                    fontWeight: 'bold',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {poi.title}
+                </div>
+              )}
+            </div>
           )
-        ))}
+        })}
+      </div>
+
+      {/* Controls Toolbar - Top Right */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '1rem',
+          right: rightSidebarOpen ? '330px' : '1rem',
+          zIndex: 10,
+          display: 'flex',
+          gap: '0.5rem',
+          transition: 'right 0.3s ease'
+        }}
+      >
+        {/* GM/Player View Toggle */}
+        {isGM && (
+          <button
+            onClick={() => setPlayerViewMode(!playerViewMode)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              background: playerViewMode ? theme.colors.primary : theme.colors.background.secondary,
+              color: playerViewMode ? 'white' : theme.colors.text.primary,
+              border: `1px solid ${theme.colors.border.primary}`,
+              borderRadius: theme.borderRadius,
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            {playerViewMode ? '👁️ Player View' : '🎮 GM View'}
+          </button>
+        )}
+
+        {/* Fit View Button */}
+        <button
+          onClick={resetView}
+          style={{
+            padding: '0.5rem 0.75rem',
+            background: theme.colors.background.secondary,
+            color: theme.colors.text.primary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 'bold'
+          }}
+        >
+          🏠 Fit View
+        </button>
+
+        {/* Zoom Display */}
+        <div
+          style={{
+            padding: '0.5rem 0.75rem',
+            background: theme.colors.background.secondary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            color: theme.colors.text.primary,
+            fontSize: '0.875rem',
+            fontWeight: 'bold'
+          }}
+        >
+          {Math.round(scale * 100)}%
+        </div>
+      </div>
+
+      {/* Right Sidebar - POI Details */}
+      <div
+        style={{
+          width: rightSidebarOpen ? '320px' : '0px',
+          height: '100%',
+          background: theme.colors.background.secondary,
+          borderLeft: `1px solid ${theme.colors.border.primary}`,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          transition: 'width 0.3s ease',
+          zIndex: 20
+        }}
+      >
+        {selectedPoi && (
+          <>
+            {/* Header */}
+            <div
+              style={{
+                padding: '1rem',
+                borderBottom: `1px solid ${theme.colors.border.primary}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start'
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: '4px' }}>
+                  {getPOIIcon(selectedPoi.category || 'location')} {selectedPoi.title}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: theme.colors.text.tertiary }}>
+                  {selectedPoi.category || 'location'}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setRightSidebarOpen(false)
+                  setSelectedPoi(null)
+                  setSelectedWikiPage(null)
+                  setIsEditingWiki(false)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.colors.text.secondary,
+                  cursor: 'pointer',
+                  fontSize: '1.2rem',
+                  padding: 0
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Visibility Controls */}
+            {isGM && (
+              <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.main }}>
+                <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+                  Visibility
+                </label>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {[
+                    { value: 'public', label: 'Public', icon: '👁️' },
+                    { value: 'rumored', label: 'Rumored', icon: '❓' },
+                    { value: 'gm_only', label: 'GM Only', icon: '🔒' }
+                  ].map(vis => (
+                    <button
+                      key={vis.value}
+                      onClick={() => updatePoiVisibility(selectedPoi.id, vis.value)}
+                      style={{
+                        flex: 1,
+                        padding: '6px',
+                        fontSize: '0.7rem',
+                        background: (selectedPoi.visibility || 'public') === vis.value ? theme.colors.primary : theme.colors.background.tertiary,
+                        color: (selectedPoi.visibility || 'public') === vis.value ? 'white' : theme.colors.text.secondary,
+                        border: `1px solid ${theme.colors.border.secondary}`,
+                        borderRadius: theme.borderRadius,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px'
+                      }}
+                    >
+                      <span>{vis.icon}</span>
+                      <span>{vis.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Wiki Content */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
+              {selectedWikiPage ? (
+                isEditingWiki ? (
+                  <div>
+                    <textarea
+                      value={editedContent}
+                      onChange={e => setEditedContent(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '400px',
+                        padding: '0.75rem',
+                        background: theme.colors.background.main,
+                        color: theme.colors.text.primary,
+                        border: `1px solid ${theme.colors.border.secondary}`,
+                        borderRadius: theme.borderRadius,
+                        fontSize: '0.875rem',
+                        fontFamily: 'monospace',
+                        resize: 'vertical',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={saveWikiContent}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: theme.colors.primary,
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: theme.borderRadius,
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditingWiki(false)
+                          setEditedContent(selectedWikiPage.content)
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: theme.colors.background.tertiary,
+                          color: theme.colors.text.primary,
+                          border: `1px solid ${theme.colors.border.secondary}`,
+                          borderRadius: theme.borderRadius,
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: '0.875rem', color: theme.colors.text.primary, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {selectedWikiPage.content}
+                    </div>
+                    {isGM && (
+                      <button
+                        onClick={() => setIsEditingWiki(true)}
+                        style={{
+                          marginTop: '1rem',
+                          width: '100%',
+                          padding: '8px',
+                          background: theme.colors.background.tertiary,
+                          color: theme.colors.text.primary,
+                          border: `1px solid ${theme.colors.border.secondary}`,
+                          borderRadius: theme.borderRadius,
+                          cursor: 'pointer',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        ✏️ Edit Content
+                      </button>
+                    )}
+                  </div>
+                )
+              ) : (
+                <div style={{ color: theme.colors.text.tertiary, fontStyle: 'italic' }}>
+                  No wiki page linked
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ padding: '0.75rem', borderTop: `1px solid ${theme.colors.border.primary}`, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <button
+                onClick={() => {
+                  if (selectedWikiPage) {
+                    router.push(`/wiki?entry=${selectedWikiPage.slug}`)
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  background: theme.colors.primary,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius,
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                📖 Open Full Wiki Page
+              </button>
+              {isGM && (
+                <button
+                  onClick={handleDeletePOI}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    background: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: theme.borderRadius,
+                    cursor: 'pointer',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  🗑️ Delete Location
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Map Loading Overlay */}
       {mapLoading && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 20,
-          color: 'white',
-          fontSize: '1.5rem'
-        }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            border: '4px solid rgba(255,255,255,0.3)',
-            borderTop: '4px solid white',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            marginBottom: '1rem'
-          }}></div>
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            color: 'white'
+          }}
+        >
+          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🗺️</div>
           Loading map...
         </div>
       )}
 
-      {/* Create POI Modal */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100
-        }}
-        onClick={() => setShowCreateModal(false)}
-        >
-          <div style={{
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.border.primary}`,
-            borderRadius: theme.borderRadius,
-            padding: '2rem',
-            width: '90%',
-            maxWidth: '500px'
-          }}
-          onClick={(e) => e.stopPropagation()}
+      {/* Create POI Popup */}
+      {showCreatePopup && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99,
+              cursor: 'default',
+              background: 'rgba(0,0,0,0.3)'
+            }}
+            onClick={() => setShowCreatePopup(false)}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              left: `${popupPosition.x}px`,
+              top: `${popupPosition.y}px`,
+              transform: 'translate(-50%, -50%)',
+              background: theme.colors.background.secondary,
+              border: `2px solid ${theme.colors.primary}`,
+              borderRadius: theme.borderRadius,
+              padding: '1.5rem',
+              width: '340px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              zIndex: 100
+            }}
+            onClick={e => e.stopPropagation()}
           >
-            <h2 style={styles.heading1}>📍 Create Point of Interest</h2>
+            <h3 style={{ ...styles.heading1, margin: '0 0 1rem 0' }}>📍 New Location</h3>
+            
             <div style={{ marginBottom: '1rem' }}>
-              <label style={styles.label}>Location Name</label>
+              <label style={styles.label}>Name</label>
               <input
                 type="text"
                 value={poiTitle}
-                onChange={(e) => setPoiTitle(e.target.value)}
-                placeholder="e.g., Dragon's Peak, The Forgotten Temple"
+                onChange={e => setPoiTitle(e.target.value)}
+                placeholder="e.g., Dragon's Peak"
                 autoFocus
                 style={styles.input}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreatePOI()}
+                onKeyDown={e => e.key === 'Enter' && handleCreatePOI()}
               />
             </div>
-            <div style={{ marginBottom: '1.5rem' }}>
+
+            <div style={{ marginBottom: '1rem' }}>
               <label style={styles.label}>Category</label>
               <select
                 value={poiCategory}
-                onChange={(e) => setPoiCategory(e.target.value)}
+                onChange={e => setPoiCategory(e.target.value)}
                 style={styles.select}
               >
                 <option value="location">📍 Location</option>
                 <option value="npc">👤 NPC</option>
                 <option value="faction">🛡️ Faction</option>
+                <option value="item">⚔️ Item</option>
+                <option value="lore">📜 Lore</option>
               </select>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={handleCreatePOI}
-                disabled={!poiTitle.trim()}
-                style={styles.button.primary}
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={styles.label}>Visibility</label>
+              <select
+                value={poiVisibility}
+                onChange={e => setPoiVisibility(e.target.value)}
+                style={styles.select}
               >
-                Create POI & Wiki Page
+                <option value="public">👁️ Public (All players can see)</option>
+                <option value="rumored">❓ Rumored (Players know vaguely)</option>
+                <option value="gm_only">🔒 GM Only (Hidden from players)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button 
+                onClick={handleCreatePOI} 
+                disabled={!poiTitle.trim()} 
+                style={{ 
+                  ...styles.button.primary, 
+                  flex: 1,
+                  opacity: poiTitle.trim() ? 1 : 0.5,
+                  cursor: poiTitle.trim() ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Create
               </button>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                style={styles.button.secondary}
+              <button 
+                onClick={() => {
+                  setShowCreatePopup(false)
+                  setPoiTitle('')
+                  setPoiVisibility('public')
+                }} 
+                style={{ ...styles.button.secondary, flex: 1 }}
               >
                 Cancel
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </main>
-  )
-}
-
-// POI Marker Component
-function POIMarker({ poi, scale, position, mapDimensions, onDelete, router, canDelete, movingPoiId, setMovingPoiId, movingOffset, setMovingOffset, icon }: {
-  poi: POI
-  scale: number
-  position: { x: number, y: number }
-  mapDimensions: { width: number, height: number }
-  onDelete: (poi: POI) => void
-  router: any
-  canDelete: boolean
-  movingPoiId: string | null
-  setMovingPoiId: (id: string | null) => void
-  movingOffset: { x: number, y: number }
-  setMovingOffset: (offset: {x: number, y: number}) => void
-  icon: string
-}) {
-  const { theme } = useTheme()
-  const [isHovered, setIsHovered] = useState(false)
-  const pixelX = poi.x * mapDimensions.width
-  const pixelY = poi.y * mapDimensions.height
-  const isMoving = movingPoiId === poi.id
-  const markerX = isMoving ? movingOffset.x * mapDimensions.width : pixelX
-  const markerY = isMoving ? movingOffset.y * mapDimensions.height : pixelY
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        left: `${markerX * scale + position.x}px`,
-        top: `${markerY * scale + position.y}px`,
-        transform: `translate(-50%, -100%) scale(${scale})`,
-        transformOrigin: 'center bottom',
-        zIndex: 5,
-        cursor: isMoving ? 'grabbing' : 'pointer',
-        opacity: isMoving ? 0.7 : 1
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onMouseDown={e => {
-        if (e.ctrlKey) {
-          e.stopPropagation()
-          setMovingPoiId(poi.id)
-          setMovingOffset({ x: poi.x, y: poi.y })
-        }
-      }}
-      onClick={e => {
-        if (e.ctrlKey) return
-        e.stopPropagation()
-        if (poi.wiki_page_id) {
-          supabase
-            .from('wiki_pages')
-            .select('slug')
-            .eq('id', poi.wiki_page_id)
-            .single()
-            .then(({ data }) => {
-              if (data) router.push(`/wiki/${data.slug}`)
-            })
-        }
-      }}
-      onContextMenu={e => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (canDelete) onDelete(poi)
-        else alert('You can only delete POIs you created!')
-      }}
-    >
-      <div 
-        style={{
-          fontSize: '6rem',
-          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
-          color: theme.colors.danger,
-          transition: 'transform 0.2s',
-          transform: isHovered ? 'scale(1.3)' : 'scale(1)'
-        }}
-      >
-        {icon}
-      </div>
-      {isHovered && (
-        <div 
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            marginTop: '0.25rem',
-            padding: '0.25rem 0.5rem',
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.primary}`,
-            borderRadius: theme.borderRadius,
-            color: theme.colors.text.primary,
-            fontSize: '3rem',
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none'
-          }}
-        >
-          {poi.title}
-        </div>
-      )}
-    </div>
   )
 }
