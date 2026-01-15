@@ -45,6 +45,7 @@ export function WikiEditorModal() {
   const [saving, setSaving] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [showFeaturedImageModal, setShowFeaturedImageModal] = useState(false)
+  const [showMarkdownGuide, setShowMarkdownGuide] = useState(false)
   const [imageAlt, setImageAlt] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -101,6 +102,8 @@ export function WikiEditorModal() {
   const applyTemplate = (templateKey: string) => {
     const template = wikiTemplates[templateKey as keyof typeof wikiTemplates]
     setContent(template)
+    // Set category to match the template
+    setCategory(templateKey)
   }
 
   const insertImage = () => {
@@ -200,7 +203,11 @@ export function WikiEditorModal() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: theme.spacing.lg }}>
+        <div style={{ 
+          flex: 1, 
+          overflow: 'auto', 
+          padding: theme.spacing.lg,
+        }}>
           {/* Title and Category */}
           <div style={{ marginBottom: theme.spacing.lg }}>
             <label
@@ -383,6 +390,37 @@ export function WikiEditorModal() {
                   + Image
                 </button>
                 <button
+                  onClick={() => {
+                    const spoilerTemplate = `:::spoiler[Click to reveal]\nHidden content here\n:::`
+                    if (textareaRef.current) {
+                      const start = textareaRef.current.selectionStart
+                      const end = textareaRef.current.selectionEnd
+                      const newContent = content.substring(0, start) + spoilerTemplate + content.substring(end)
+                      setContent(newContent)
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          const newPosition = start + spoilerTemplate.length
+                          textareaRef.current.selectionStart = newPosition
+                          textareaRef.current.selectionEnd = newPosition
+                          textareaRef.current.focus()
+                        }
+                      }, 0)
+                    }
+                  }}
+                  type="button"
+                  style={{
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                    background: 'none',
+                    border: `1px solid ${theme.colors.border.primary}`,
+                    borderRadius: theme.borderRadius,
+                    color: theme.colors.text.secondary,
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  + Spoiler
+                </button>
+                <button
                   onClick={() => setShowFeaturedImageModal(true)}
                   type="button"
                   style={{
@@ -411,6 +449,21 @@ export function WikiEditorModal() {
                   }}
                 >
                   {showPreview ? 'Edit' : 'Preview'}
+                </button>
+                <button
+                  onClick={() => setShowMarkdownGuide(!showMarkdownGuide)}
+                  type="button"
+                  style={{
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                    background: 'none',
+                    border: `1px solid ${theme.colors.border.primary}`,
+                    borderRadius: theme.borderRadius,
+                    color: theme.colors.text.secondary,
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  ? Markdown Help
                 </button>
               </div>
             </div>
@@ -473,7 +526,7 @@ export function WikiEditorModal() {
             )}
           </div>
         </div>
-
+        
         {/* Footer with actions */}
         <div
           style={{
@@ -521,6 +574,133 @@ export function WikiEditorModal() {
           </button>
         </div>
       </div>
+
+      {/* Floating Markdown Guide Popup */}
+      {showMarkdownGuide && (
+        <div style={{
+          position: 'fixed',
+          right: '2%',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: '405px',
+          maxHeight: '80vh',
+          backgroundColor: theme.colors.background.main,
+          border: `2px solid ${theme.colors.primary}`,
+          borderRadius: theme.borderRadius,
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+          zIndex: 999,
+          overflowY: 'auto',
+          padding: theme.spacing.lg,
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: theme.spacing.md,
+            paddingBottom: theme.spacing.md,
+            borderBottom: `1px solid ${theme.colors.border.primary}`,
+          }}>
+            <h3 style={{
+              margin: 0,
+              color: theme.colors.text.primary,
+              fontSize: '14px',
+              fontWeight: 600,
+            }}>
+              📝 Markdown Guide
+            </h3>
+            <button
+              onClick={() => setShowMarkdownGuide(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '18px',
+                cursor: 'pointer',
+                color: theme.colors.text.secondary,
+                padding: 0,
+                width: '22px',
+                height: '22px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div style={{ marginBottom: theme.spacing.md }}>
+            <h4 style={{ color: theme.colors.text.secondary, marginTop: 0, marginBottom: theme.spacing.sm, fontSize: '12px', fontWeight: 600 }}>Basic Formatting</h4>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing.xs,
+              background: theme.colors.background.secondary,
+              padding: theme.spacing.sm,
+              borderRadius: theme.borderRadius,
+              fontSize: '11px',
+              color: theme.colors.text.primary,
+            }}>
+              <div><strong>#</strong> Heading 1</div>
+              <div><strong>##</strong> Heading 2</div>
+              <div><strong>**text**</strong> = Bold</div>
+              <div><strong>*text*</strong> = Italic</div>
+              <div><strong>~~text~~</strong> = Strikethrough</div>
+              <div><strong>&gt;</strong> = Blockquote</div>
+              <div><strong>---</strong> = Horizontal line</div>
+              <div><strong>\\</strong> = Force newline</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: theme.spacing.md }}>
+            <h4 style={{ color: theme.colors.text.secondary, marginTop: 0, marginBottom: theme.spacing.sm, fontSize: '12px', fontWeight: 600 }}>Lists & Links</h4>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing.xs,
+              background: theme.colors.background.secondary,
+              padding: theme.spacing.sm,
+              borderRadius: theme.borderRadius,
+              fontSize: '11px',
+              color: theme.colors.text.primary,
+            }}>
+              <div><strong>-</strong> Bullet item</div>
+              <div style={{ paddingLeft: '12px' }}><strong>-</strong> Nested item</div>
+              <div><strong>1.</strong> 2. 3. Numbered list</div>
+              <div><strong>[text](url)</strong> Link</div>
+              <div><strong>![alt](url)</strong> Image</div>
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ color: theme.colors.text.secondary, marginTop: 0, marginBottom: theme.spacing.sm, fontSize: '12px', fontWeight: 600 }}>Code & Images</h4>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: theme.spacing.xs,
+              background: theme.colors.background.secondary,
+              padding: theme.spacing.sm,
+              borderRadius: theme.borderRadius,
+              fontSize: '11px',
+              color: theme.colors.text.primary,
+            }}>
+              <div><strong>`text`</strong> Inline code</div>
+              <div><strong>```lang</strong> Code block</div>
+              <div><strong>![description](https://url)</strong> Image</div>
+              <div style={{ fontSize: '10px', marginTop: '4px', fontStyle: 'italic', color: theme.colors.text.secondary }}>💡 Use + Image button for easier insert</div>
+            </div>
+          </div>
+
+          <p style={{
+            marginTop: theme.spacing.md,
+            marginBottom: 0,
+            color: theme.colors.text.secondary,
+            fontSize: '11px',
+            fontStyle: 'italic',
+          }}>
+            💡 Click Preview to see live rendering
+          </p>
+        </div>
+      )}
 
       {/* Image Insert Modal */}
       {showImageModal && (

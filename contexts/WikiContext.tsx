@@ -202,6 +202,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
       const { data, error: err } = await supabase
         .from('wiki_pages')
         .select('*')
+        .is('deleted_at', null)
         .order('title', { ascending: true })
 
       if (err) throw err
@@ -362,7 +363,10 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     if (!user) throw new Error('Must be logged in to delete')
 
     try {
-      const { error: err } = await supabase.from('wiki_pages').delete().eq('id', id)
+      const { error: err } = await supabase
+        .from('wiki_pages')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+        .eq('id', id)
 
       if (err) throw err
 

@@ -3,6 +3,7 @@ export const wikiTemplates: Record<string, string> = {
   npc: `# [NPC Name]
 **Race:** [Race]  
 **Class/Profession:** [Class/Profession]  
+**Pronouns:** [Pronouns]  
 **Background:** [Background]  
 **Alignment:** [Alignment]
 ----
@@ -45,7 +46,8 @@ export const wikiTemplates: Record<string, string> = {
   'player character': `# [Player Character Name]
 **Race:** [Race]  
 **Class:** [Class]  
-**Background:** [Background]  
+**Pronouns:** [Pronouns]  
+**Community:** [Community]  
 **Alignment:** [Alignment]  
 **Favorite Color:** [Favorite Color]
 ----

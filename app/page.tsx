@@ -75,6 +75,7 @@ export default function DashboardPage() {
       const { data: allSessions } = await supabase
         .from('sessions')
         .select('*')
+        .is('deleted_at', null)
         .order('date_time', { ascending: true })
       
       const now = new Date()
@@ -105,6 +106,7 @@ export default function DashboardPage() {
       const { data: wikiData } = await supabase
         .from('wiki_pages')
         .select('id, title, slug, category, updated_at')
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false })
         .limit(4)
       setRecentWikiPages(wikiData || [])
@@ -113,12 +115,14 @@ export default function DashboardPage() {
       const { data: wikiCountData } = await supabase
         .from('wiki_pages')
         .select('id', { count: 'exact' })
+        .is('deleted_at', null)
       setWikiPageCount(wikiCountData?.length || 0)
 
       // Fetch map POIs
       const { data: poisData } = await supabase
         .from('map_pois')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: true })
       setMapPois(poisData || [])
     } catch (error: any) {
@@ -369,7 +373,7 @@ export default function DashboardPage() {
                 const gmName = gmNames[session.gm_id] || 'Loading...'
 
                 return (
-                  <button
+                  <div
                     key={session.id}
                     onClick={() => router.push(`/sessions/${session.id}`)}
                     style={{
@@ -392,6 +396,14 @@ export default function DashboardPage() {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = theme.colors.border.primary
                       e.currentTarget.style.background = theme.colors.background.secondary
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        router.push(`/sessions/${session.id}`)
+                      }
                     }}
                   >
                     <div>
@@ -430,7 +442,7 @@ export default function DashboardPage() {
                     >
                       View Details
                     </button>
-                  </button>
+                  </div>
                 )
               })}
               <button

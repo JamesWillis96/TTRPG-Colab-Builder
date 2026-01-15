@@ -21,6 +21,8 @@ type WikiPage = {
   profile?: {
     username: string
   }
+  deleted_at?: string | null
+  deleted_by?: string | null
 }
 
 export default function WikiPageView() {
@@ -50,6 +52,11 @@ export default function WikiPageView() {
   const [attachments, setAttachments] = useState<Array<{ name: string; url: string; type: string }>>([])
   const [revisions, setRevisions] = useState<Array<any>>([])
   const [rollingBack, setRollingBack] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const isDeleted = !!page?.deleted_at
+  const canViewDeleted = isAuthorized
 
   useEffect(() => {
     if (slug) {
@@ -86,6 +93,7 @@ export default function WikiPageView() {
       supabase
         .from('map_pois')
         .select('id, title')
+        .is('deleted_at', null)
         .eq('wiki_page_id', page.id)
         .single()
         .then(({ data }) => {
@@ -148,12 +156,11 @@ export default function WikiPageView() {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this page? This cannot be undone.')) return
-
+    setIsDeleting(true)
     try {
       const { error } = await supabase
         .from('wiki_pages')
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
         .eq('id', page?.id)
 
       if (error) throw error
@@ -161,6 +168,8 @@ export default function WikiPageView() {
       router.push('/wiki')
     } catch (error: any) {
       alert('Error deleting page: ' + error.message)
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -231,8 +240,34 @@ export default function WikiPageView() {
     )
   }
 
+  if (isDeleted && !canViewDeleted) {
+    return (
+      <main style={{ ...styles.container, padding: '1rem' }}>
+        <a href="/wiki" style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 'bold', marginBottom: '1rem', display: 'inline-block' }}>
+          ← Back to Wiki
+        </a>
+        <h1 style={styles.heading1}>{page.title}</h1>
+        <p style={{ color: theme.colors.text.secondary }}>
+          This page is in the recycle bin. Only admins or the author can view or restore it.
+        </p>
+      </main>
+    )
+  }
+
   return (
     <main style={{ ...styles.container, padding: '1rem' }}>
+      {isDeleted && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          border: `1px solid ${theme.colors.border.primary}`,
+          background: theme.colors.background.secondary,
+          color: theme.colors.text.secondary,
+          marginBottom: '1rem'
+        }}>
+          This page is in the recycle bin. Restore it from the Recycle Bin to make it visible to others.
+        </div>
+      )}
       {/* Back Link and Go to Map */}
       <div
         style={{
@@ -408,7 +443,7 @@ export default function WikiPageView() {
   {/* Delete Button (Bottom Right) */}
   {isAuthorized && (
     <button
-      onClick={handleDelete}
+      onClick={() => setShowDeleteConfirm(true)}
       style={{
         gridArea: 'delete',
         padding: '0.5rem 1rem',
@@ -420,10 +455,10 @@ export default function WikiPageView() {
         cursor: 'pointer',
         transition: 'background-color 0.2s',
         textAlign: 'center',
-        width: '5rem', // Ensure the button only takes up as much space as its content
+        width: '5rem',
         height: '2.5rem',
-        alignSelf: 'top', // Vertically align the button within the grid cell
-      justifySelf: 'end', // Horizontally align the button to the right
+        alignSelf: 'top',
+        justifySelf: 'end',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = theme.colors.text.primary
@@ -548,6 +583,87 @@ export default function WikiPageView() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 99,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: theme.colors.background.secondary,
+              border: `2px solid ${theme.colors.danger}`,
+              borderRadius: theme.borderRadius,
+              padding: '2rem',
+              maxWidth: '400px',
+              width: '90%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              zIndex: 100
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 style={{ color: theme.colors.danger, margin: '0 0 1rem 0', fontSize: '1.5rem' }}>
+              🗑️ Delete Page?
+            </h2>
+            <p style={{ color: theme.colors.text.primary, margin: '0 0 1.5rem 0', lineHeight: 1.6 }}>
+              Are you sure you want to delete <strong>{page?.title}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: theme.colors.background.tertiary,
+                  color: theme.colors.text.primary,
+                  border: `1px solid ${theme.colors.border.secondary}`,
+                  borderRadius: theme.borderRadius,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  opacity: isDeleting ? 0.5 : 1
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: theme.colors.danger,
+                  color: theme.colors.text.primary,
+                  border: `1px solid ${theme.colors.danger}`,
+                  borderRadius: theme.borderRadius,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  opacity: isDeleting ? 0.7 : 1
+                }}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </main>
   )

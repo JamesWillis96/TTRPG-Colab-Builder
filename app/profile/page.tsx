@@ -8,6 +8,8 @@ import { supabase } from '../../lib/supabase'
 export default function ProfilePage() {
   const { user } = useAuth()
   const { theme } = useTheme()
+  const AVATAR_SIZE = 120
+  const PREVIEW_SIZE = 200
   const [username, setUsername] = useState('')
   const [role, setRole] = useState('player')
   const [aboutMe, setAboutMe] = useState('')
@@ -190,8 +192,8 @@ export default function ProfilePage() {
               <div
                 onClick={() => setShowImageEditor(true)}
                 style={{
-                  width: '120px',
-                  height: '120px',
+                  width: `${AVATAR_SIZE}px`,
+                  height: `${AVATAR_SIZE}px`,
                   borderRadius: '50%',
                   border: `2px solid ${theme.colors.border.primary}`,
                   overflow: 'hidden',
@@ -210,8 +212,8 @@ export default function ProfilePage() {
                     style={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
-                      transform: `scale(${imageZoom}) translate(${imagePositionX}px, ${imagePositionY}px)`,
+                      objectFit: 'contain',
+                      transform: `translate(${imagePositionX * (AVATAR_SIZE / PREVIEW_SIZE)}px, ${imagePositionY * (AVATAR_SIZE / PREVIEW_SIZE)}px) scale(${imageZoom})`,
                     }}
                   />
                 ) : (
@@ -224,25 +226,6 @@ export default function ProfilePage() {
                     {username ? username.charAt(0).toUpperCase() : '?'}
                   </div>
                 )}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '0',
-                    right: '0',
-                    width: '30px',
-                    height: '30px',
-                    backgroundColor: theme.colors.primary,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '16px',
-                    color: '#fff',
-                    border: `2px solid ${theme.colors.background.secondary}`,
-                  }}
-                >
-                  ✎
-                </div>
               </div>
               <p
                 style={{
@@ -548,8 +531,8 @@ export default function ProfilePage() {
                       </p>
                       <div
                         style={{
-                          width: '200px',
-                          height: '200px',
+                          width: `${PREVIEW_SIZE}px`,
+                          height: `${PREVIEW_SIZE}px`,
                           borderRadius: '50%',
                           border: `2px solid ${theme.colors.border.primary}`,
                           overflow: 'hidden',
@@ -566,8 +549,8 @@ export default function ProfilePage() {
                           style={{
                             width: '100%',
                             height: '100%',
-                            objectFit: 'cover',
-                            transform: `scale(${imageZoom}) translate(${imagePositionX}px, ${imagePositionY}px)`,
+                            objectFit: 'contain',
+                            transform: `translate(${imagePositionX}px, ${imagePositionY}px) scale(${imageZoom})`,
                           }}
                         />
                       </div>

@@ -20,6 +20,8 @@ type POI = {
   discovered_at?: string
   discovered_in_session_id?: string
   color?: string
+  deleted_at?: string | null
+  deleted_by?: string | null
 }
 
 type WikiPage = {
@@ -155,6 +157,7 @@ export default function MapEditorPage() {
       const { data, error } = await supabase
         .from('map_pois')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: true })
       if (error) throw error
       setPois(data || [])
@@ -184,6 +187,7 @@ export default function MapEditorPage() {
       const { data, error } = await supabase
         .from('wiki_pages')
         .select('*')
+        .is('deleted_at', null)
         .eq('id', poi.wiki_page_id)
         .single()
       if (!error && data) {
@@ -309,14 +313,19 @@ export default function MapEditorPage() {
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0 || movingPoiId) return
+    if (e.button !== 0) return
+    if (movingPoiId) return
+    // Don't start map dragging if Ctrl is held (reserved for POI movement)
+    if (e.ctrlKey) return
     setIsDragging(true)
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return
-    setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
+    // Only pan the map if we're not moving a POI
+    if (isDragging && !movingPoiId) {
+      setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })
+    }
 
     if (movingPoiId && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
@@ -486,7 +495,10 @@ export default function MapEditorPage() {
     }
     if (!confirm(`Delete "${selectedPoi.title}"?`)) return
     try {
-      const { error } = await supabase.from('map_pois').delete().eq('id', selectedPoi.id)
+      const { error } = await supabase
+        .from('map_pois')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
+        .eq('id', selectedPoi.id)
       if (error) throw error
       setPois(pois.filter(p => p.id !== selectedPoi.id))
       setRightSidebarOpen(false)
@@ -607,24 +619,33 @@ export default function MapEditorPage() {
             Categories
           </label>
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {Object.entries(visibleCategories).map(([category, visible]) => (
-              <button
-                key={category}
-                onClick={() => setVisibleCategories({ ...visibleCategories, [category]: !visible })}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '0.7rem',
-                  background: visible ? theme.colors.primary : theme.colors.background.tertiary,
-                  color: visible ? 'white' : theme.colors.text.secondary,
-                  border: `1px solid ${theme.colors.border.secondary}`,
-                  borderRadius: theme.borderRadius,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </button>
-            ))}
+            {Object.entries(visibleCategories).map(([category, visible]) => {
+              const categoryCount = pois.filter(p => (p.category || 'location') === category && getVisiblePois().some(vp => vp.id === p.id)).length
+              return (
+                <button
+                  key={category}
+                  onClick={() => setVisibleCategories({ ...visibleCategories, [category]: !visible })}
+                  style={{
+                    padding: '6px 10px',
+                    fontSize: '0.75rem',
+                    background: visible ? theme.colors.primary : theme.colors.background.tertiary,
+                    color: visible ? 'white' : theme.colors.text.secondary,
+                    border: `1px solid ${theme.colors.border.secondary}`,
+                    borderRadius: theme.borderRadius,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontWeight: visible ? 'bold' : 'normal',
+                    display: 'flex',
+                    gap: '4px',
+                    alignItems: 'center'
+                  }}
+                  title={`${visible ? 'Click to hide' : 'Click to show'} ${category}`}
+                >
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                  <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>({categoryCount})</span>
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -649,6 +670,39 @@ export default function MapEditorPage() {
           </div>
         )}
 
+        {/* Visibility Legend */}
+        <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.main }}>
+          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+            Visibility Legend
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem' }}>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem' }}>👁️</span>
+              <span style={{ color: theme.colors.text.primary }}>Public</span>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem' }}>❓</span>
+              <span style={{ color: theme.colors.text.primary }}>Rumored</span>
+            </div>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem' }}>🔒</span>
+              <span style={{ color: theme.colors.text.primary }}>GM Only</span>
+            </div>
+          </div>
+        </div>
+
+        {/* POI Creation Hints */}
+        <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.main }}>
+          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+            💡 Quick Tips
+          </label>
+          <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.8rem', color: theme.colors.text.primary }}>
+            <li>Right-click on map to create</li>
+            <li>Ctrl+drag to move POIs {isGM ? '' : '(GM only)'}</li>
+            <li>Click name to view details</li>
+          </ul>
+        </div>
+
         {/* POI List */}
         <div
           style={{
@@ -664,8 +718,12 @@ export default function MapEditorPage() {
             {visiblePois.length} location{visiblePois.length !== 1 ? 's' : ''}
           </div>
           {visiblePois.length === 0 ? (
-            <div style={{ color: theme.colors.text.tertiary, fontSize: '0.875rem', padding: '0.5rem', fontStyle: 'italic' }}>
-              No locations found
+            <div style={{ color: theme.colors.text.tertiary, fontSize: '0.875rem', padding: '1rem 0.5rem', fontStyle: 'italic', textAlign: 'center' }}>
+              {searchQuery 
+                ? `No matches for "${searchQuery}"` 
+                : pois.length === 0 
+                  ? 'No locations yet. Right-click on the map to create one!'
+                  : 'No visible locations. Try adjusting your filters.'}
             </div>
           ) : (
             visiblePois.map(poi => {
@@ -816,9 +874,13 @@ export default function MapEditorPage() {
               onMouseLeave={() => setHoveredPoiId(null)}
               onMouseDown={e => {
                 if (e.ctrlKey && isGM) {
-                  e.stopPropagation()
+                  // Don't stop propagation - let the container handle mousemove/mouseup
                   setMovingPoiId(poi.id)
                   setMovingOffset({ x: poi.x, y: poi.y })
+                  setIsDragging(true)
+                  setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y })
+                } else {
+                  e.stopPropagation()
                 }
               }}
               onClick={e => {
@@ -857,7 +919,7 @@ export default function MapEditorPage() {
                   </div>
                 )}
               </div>
-              {(isHovered || isSelected) && (
+              {isHovered && (
                 <div
                   style={{
                     position: 'absolute',
@@ -865,19 +927,20 @@ export default function MapEditorPage() {
                     left: '50%',
                     transform: 'translateX(-50%)',
                     marginTop: '0.25rem',
-                    padding: '0.5rem 0.75rem',
+                    padding: '0.75rem',
                     background: theme.colors.background.secondary,
                     border: `2px solid ${theme.colors.primary}`,
                     borderRadius: theme.borderRadius,
                     color: theme.colors.text.primary,
-                    fontSize: '2rem',
+                    fontSize: '0.9rem',
                     fontWeight: 'bold',
                     whiteSpace: 'nowrap',
                     pointerEvents: 'none',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    zIndex: 50
                   }}
                 >
-                  {poi.title}
+                  <span>{poi.title}</span>
                 </div>
               )}
             </div>
@@ -1122,9 +1185,51 @@ export default function MapEditorPage() {
                   </div>
                 ) : (
                   <div>
-                    <div style={{ fontSize: '0.875rem', color: theme.colors.text.primary, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    <div className="markdown-content" style={{ fontSize: '0.875rem', color: theme.colors.text.primary, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                       {selectedWikiPage.content}
                     </div>
+                    <style>{`
+                      .markdown-content h1, .markdown-content h2, .markdown-content h3, .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+                        color: ${theme.colors.primary};
+                        margin: 1rem 0 0.5rem 0;
+                        font-weight: bold;
+                      }
+                      .markdown-content h1 { font-size: 1.5rem; }
+                      .markdown-content h2 { font-size: 1.3rem; }
+                      .markdown-content h3 { font-size: 1.1rem; }
+                      .markdown-content strong { font-weight: bold; color: ${theme.colors.primary}; }
+                      .markdown-content em { font-style: italic; }
+                      .markdown-content code { 
+                        background: ${theme.colors.background.main}; 
+                        padding: 0.2rem 0.4rem; 
+                        border-radius: 3px; 
+                        font-family: monospace; 
+                        font-size: 0.85em; 
+                      }
+                      .markdown-content pre { 
+                        background: ${theme.colors.background.main}; 
+                        padding: 0.75rem; 
+                        border-radius: 4px; 
+                        overflow-x: auto; 
+                      }
+                      .markdown-content ul, .markdown-content ol { 
+                        margin: 0.5rem 0; 
+                        padding-left: 1.5rem; 
+                      }
+                      .markdown-content li { margin: 0.25rem 0; }
+                      .markdown-content blockquote { 
+                        border-left: 4px solid ${theme.colors.primary}; 
+                        padding-left: 0.75rem; 
+                        margin: 0.5rem 0; 
+                        color: ${theme.colors.text.secondary}; 
+                        font-style: italic; 
+                      }
+                      .markdown-content hr { 
+                        border: none; 
+                        border-top: 1px solid ${theme.colors.border.primary}; 
+                        margin: 1rem 0; 
+                      }
+                    `}</style>
                     {isGM && (
                       <button
                         onClick={() => setIsEditingWiki(true)}

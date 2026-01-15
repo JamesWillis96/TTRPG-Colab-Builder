@@ -86,6 +86,11 @@ export default function Navbar() {
           <Link href="/profile" style={{ color: theme.colors.text.primary }}>
             Profile
           </Link>
+          {profile?.role === 'admin' && (
+            <Link href="/recycle-bin" style={{ color: theme.colors.text.primary }}>
+              Recycle Bin
+            </Link>
+          )}
             {/* Theme Toggle */}
           <label className="switch">
             <input
@@ -302,6 +307,32 @@ export default function Navbar() {
                 </button>
               </Link>
             </li>
+            {profile?.role === 'admin' && (
+              <li>
+                <Link href="/recycle-bin">
+                  <button style={{ color: theme.colors.text.primary, fontWeight: 'normal' }}>
+                    <svg
+                      stroke-linejoin="round"
+                      stroke-linecap="round"
+                      stroke-width="2"
+                      stroke={theme.colors.text.primary}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      height="17.5"
+                      width="17.5"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M3 6h18"></path>
+                      <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6"></path>
+                      <path d="M10 10v6"></path>
+                      <path d="M14 10v6"></path>
+                      <path d="M9 6l1-2h4l1 2"></path>
+                    </svg>
+                    <span>Recycle Bin</span>
+                  </button>
+                </Link>
+              </li>
+            )}
             <li>
               <button
                 onClick={handleAuth}

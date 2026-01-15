@@ -14,6 +14,8 @@ type SessionRow = {
   max_players?: number | null
   game_system?: string
   gm_id: string
+  deleted_at?: string | null
+  deleted_by?: string | null
 }
 
 type Player = { session_id: string; player_id: string }
@@ -68,6 +70,7 @@ export default function SessionsPage() {
       const { data: sessionList, error: sessionsErr } = await supabase
         .from('sessions')
         .select('*')
+        .is('deleted_at', null)
         .order('date_time', { ascending: true })
       if (sessionsErr) throw sessionsErr
       
@@ -275,9 +278,12 @@ export default function SessionsPage() {
   }
 
   const deleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this session?')) return
+    if (!confirm('Move this session to the recycle bin?')) return
     try {
-      const { error } = await supabase.from('sessions').delete().eq('id', sessionId)
+      const { error } = await supabase
+        .from('sessions')
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
+        .eq('id', sessionId)
       if (error) throw error
       await loadData()
     } catch (err: any) {

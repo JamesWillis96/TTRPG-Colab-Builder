@@ -7,6 +7,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getMarkdownThemeCSS } from '../../lib/markdownThemes'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { calculateReadingTime } from '../../lib/wiki'
 import { supabase } from '../../lib/supabase'
 
@@ -47,10 +49,18 @@ function ImageComponent({ src, alt }: { src?: string; alt?: string }) {
 }
 
 export function WikiContentPane() {
-  const { theme } = useTheme()
+  const { theme, isDark } = useTheme()
   const { user, profile } = useAuth()
   const { selectedEntry, openEditModal, deleteEntry, openRevisionsModal } = useWiki()
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Reset delete confirmation state when entry changes
+  useEffect(() => {
+    setShowDeleteConfirm(false)
+    setIsDeleting(false)
+  }, [selectedEntry?.id])
 
   // Fetch author profile when selected entry changes
   useEffect(() => {
@@ -100,6 +110,25 @@ export function WikiContentPane() {
   }
 
   const readingTime = calculateReadingTime(selectedEntry.content)
+
+  // Pre-process content to convert :::spoiler[...] blocks to HTML
+  const processedContent = React.useMemo(() => {
+    let content = selectedEntry.content
+    
+    // Replace :::spoiler[Title] ... ::: with <details><summary>Title</summary>...</details>
+    const spoilerRegex = /:::spoiler\[([^\]]+)\]\s*\n([\s\S]*?)\n:::/g
+    content = content.replace(spoilerRegex, (match, title, body) => {
+      return `<details>\n<summary>${title}</summary>\n\n${body}\n\n</details>`
+    })
+    
+    // Also support :::spoiler without brackets (default title)
+    const spoilerRegex2 = /:::spoiler\s*\n([\s\S]*?)\n:::/g
+    content = content.replace(spoilerRegex2, (match, body) => {
+      return `<details>\n<summary>Spoiler</summary>\n\n${body}\n\n</details>`
+    })
+    
+    return content
+  }, [selectedEntry.content])
 
   return (
     <div
@@ -244,7 +273,7 @@ export function WikiContentPane() {
                   Edit
                 </button>
                 <button
-                  onClick={() => deleteEntry(selectedEntry.id)}
+                  onClick={() => setShowDeleteConfirm(true)}
                   style={{
                     padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                     backgroundColor: '#dc3545',
@@ -291,8 +320,29 @@ export function WikiContentPane() {
             minWidth: 0,
           }}
         >
+          {/* HTML spoilers supported via <details>/<summary>. */}
+          
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[
+              rehypeRaw,
+              [
+                rehypeSanitize,
+                {
+                  ...defaultSchema,
+                  tagNames: [
+                    ...(defaultSchema.tagNames || []),
+                    'details',
+                    'summary'
+                  ],
+                  attributes: {
+                    ...(defaultSchema.attributes || {}),
+                    details: ['open'],
+                    summary: ['aria-label']
+                  }
+                }
+              ]
+            ]}
             components={{
               img: (props) => (
                 <ImageComponent 
@@ -300,9 +350,48 @@ export function WikiContentPane() {
                   alt={typeof props.alt === 'string' ? props.alt : undefined} 
                 />
               ),
+              details: ({ children }) => (
+                <details
+                  style={{
+                    margin: `${theme.spacing.sm} 0`,
+                    display: 'inline-block',
+                    width: '100%',
+                  }}
+                >
+                  {children}
+                </details>
+              ),
+              summary: ({ children }) => (
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    color: theme.colors.text.secondary,
+                    padding: '4px 10px',
+                    listStyle: 'none',
+                    display: 'inline-block',
+                    borderRadius: '4px',
+                    border: `1px solid ${theme.colors.border.secondary}`,
+                    backgroundColor: 'transparent',
+                    fontSize: '0.9em',
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = theme.colors.background.secondary
+                    e.currentTarget.style.borderColor = theme.colors.border.primary
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                    e.currentTarget.style.borderColor = theme.colors.border.secondary
+                  }}
+                >
+                  ▸ {children}
+                </summary>
+              ),
             }}
           >
-            {selectedEntry.content}
+            {processedContent}
           </ReactMarkdown>
         </article>
 
@@ -344,6 +433,106 @@ export function WikiContentPane() {
           </div>
         )}
       </div>
+
+      {showDeleteConfirm && (
+        <>
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}>
+            <div style={{
+              background: isDark ? theme.colors.background.secondary : '#ffffff',
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.borderRadius,
+              padding: theme.spacing.lg,
+              maxWidth: '400px',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+            }}>
+              <h3 style={{
+                color: theme.colors.text.primary,
+                marginTop: 0,
+                marginBottom: theme.spacing.md,
+                fontSize: '1.1rem'
+              }}>
+                🗑️ Delete Entry?
+              </h3>
+              <p style={{
+                color: theme.colors.text.secondary,
+                marginBottom: theme.spacing.lg
+              }}>
+                Are you sure you want to delete <strong>"{selectedEntry?.title}"</strong>? This action cannot be undone.
+              </p>
+              <div style={{
+                display: 'flex',
+                gap: theme.spacing.sm,
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  style={{
+                    background: theme.colors.background.tertiary,
+                    color: theme.colors.text.primary,
+                    border: `1px solid ${theme.colors.border}`,
+                    borderRadius: theme.borderRadius,
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = isDark ? 'rgba(100, 116, 139, 0.3)' : 'rgba(0, 0, 0, 0.05)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = theme.colors.background.tertiary
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setIsDeleting(true)
+                    try {
+                      await deleteEntry(selectedEntry.id)
+                    } finally {
+                      setIsDeleting(false)
+                    }
+                  }}
+                  disabled={isDeleting}
+                  style={{
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: theme.borderRadius,
+                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                    cursor: isDeleting ? 'not-allowed' : 'pointer',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s ease',
+                    opacity: isDeleting ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isDeleting) e.currentTarget.style.background = '#b91c1c'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isDeleting) e.currentTarget.style.background = '#dc2626'
+                  }}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

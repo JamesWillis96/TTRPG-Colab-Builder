@@ -15,6 +15,8 @@ type Session = {
   gm_id: string
   status: string
   created_at: string
+  deleted_at?: string | null
+  deleted_by?: string | null
 }
 
 type Profile = {
@@ -63,7 +65,14 @@ export default function SessionDetailPage() {
         .single()
 
       if (sessionError) throw sessionError
-      
+
+      if (sessionData?.deleted_at) {
+        setSession(sessionData)
+        setLoading(false)
+        router.push('/sessions')
+        return
+      }
+
       setSession(sessionData)
       setIsGM(user?.id === sessionData.gm_id)
 
@@ -130,7 +139,7 @@ export default function SessionDetailPage() {
     try {
       const { error } = await supabase
         .from('sessions')
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
         .eq('id', sessionId)
 
       if (error) throw error

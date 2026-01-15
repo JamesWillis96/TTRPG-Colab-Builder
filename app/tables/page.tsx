@@ -16,6 +16,8 @@ type RandomTable = {
   is_official: boolean
   created_by: string
   created_at: string
+  deleted_at?: string | null
+  deleted_by?: string | null
 }
 
 type TableEntry = {
@@ -87,6 +89,7 @@ export default function TablesPage() {
       const { data, error } = await supabase
         .from('random_tables')
         .select('*')
+        .is('deleted_at', null)
         .order('is_official', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -256,12 +259,12 @@ export default function TablesPage() {
 
   // Delete table
   const deleteTable = async (tableId: string) => {
-    if (!confirm('Delete this table permanently?')) return
+    if (!confirm('Move this table to the recycle bin?')) return
 
     try {
       const { error } = await supabase
         .from('random_tables')
-        .delete()
+        .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
         .eq('id', tableId)
 
       if (error) throw error
