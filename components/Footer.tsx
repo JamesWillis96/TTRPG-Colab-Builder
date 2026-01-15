@@ -22,7 +22,7 @@ export default function Footer() {
       backgroundColor: `${theme.colors.background.tertiary}ee`
     }}>
       <p style={{ margin: 0 }}>
-        ⚠️ <strong>Beta Version</strong> - This site is in active development. Changes and improvements are sure to happen.
+        ⚠️ <strong>Beta Version</strong> - This site is in active development. Changes and improvements are sure to happen. If you find any bugs or have a suggestion, please click the bug to the right 
       </p>
     </footer>
   )
