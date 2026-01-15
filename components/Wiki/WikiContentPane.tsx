@@ -91,6 +91,27 @@ export function WikiContentPane() {
     fetchAuthorProfile()
   }, [selectedEntry?.author_id])
 
+  // Pre-process content to convert :::spoiler[...] blocks to HTML
+  const processedContent = React.useMemo(() => {
+    if (!selectedEntry) return ''
+    
+    let content = selectedEntry.content
+    
+    // Replace :::spoiler[Title] ... ::: with <details><summary>Title</summary>...</details>
+    const spoilerRegex = /:::spoiler\[([^\]]+)\]\s*\n([\s\S]*?)\n:::/g
+    content = content.replace(spoilerRegex, (match, title, body) => {
+      return `<details>\n<summary>${title}</summary>\n\n${body}\n\n</details>`
+    })
+    
+    // Also support :::spoiler without brackets (default title)
+    const spoilerRegex2 = /:::spoiler\s*\n([\s\S]*?)\n:::/g
+    content = content.replace(spoilerRegex2, (match, body) => {
+      return `<details>\n<summary>Spoiler</summary>\n\n${body}\n\n</details>`
+    })
+    
+    return content
+  }, [selectedEntry])
+
   if (!selectedEntry) {
     return (
       <div
@@ -110,25 +131,6 @@ export function WikiContentPane() {
   }
 
   const readingTime = calculateReadingTime(selectedEntry.content)
-
-  // Pre-process content to convert :::spoiler[...] blocks to HTML
-  const processedContent = React.useMemo(() => {
-    let content = selectedEntry.content
-    
-    // Replace :::spoiler[Title] ... ::: with <details><summary>Title</summary>...</details>
-    const spoilerRegex = /:::spoiler\[([^\]]+)\]\s*\n([\s\S]*?)\n:::/g
-    content = content.replace(spoilerRegex, (match, title, body) => {
-      return `<details>\n<summary>${title}</summary>\n\n${body}\n\n</details>`
-    })
-    
-    // Also support :::spoiler without brackets (default title)
-    const spoilerRegex2 = /:::spoiler\s*\n([\s\S]*?)\n:::/g
-    content = content.replace(spoilerRegex2, (match, body) => {
-      return `<details>\n<summary>Spoiler</summary>\n\n${body}\n\n</details>`
-    })
-    
-    return content
-  }, [selectedEntry.content])
 
   return (
     <div
@@ -359,7 +361,7 @@ export function WikiContentPane() {
                   }}
                 >
                   {children}
-                </details>
+                </details>  
               ),
               summary: ({ children }) => (
                 <summary
