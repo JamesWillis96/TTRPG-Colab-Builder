@@ -178,6 +178,7 @@ export function WikiContentPane() {
           paddingBottom: '200px',
           display: 'flex',
           gap: theme.spacing.lg,
+          
         }}
       >
         <style>{getMarkdownThemeCSS(selectedEntry.markdown_theme || 'github')}</style>

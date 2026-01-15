@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useWiki } from '../../contexts/WikiContext'
 import { WikiHeader } from './WikiHeader'
@@ -65,6 +64,7 @@ export function WikiLayout() {
               flexDirection: 'column',
               overflow: 'hidden',
               backgroundColor: theme.colors.background.main,
+              marginBottom: '5rem'
             }}
           >
             <WikiContentPane />
