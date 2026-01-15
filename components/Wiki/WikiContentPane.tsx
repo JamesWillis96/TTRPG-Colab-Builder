@@ -272,10 +272,9 @@ export function WikiContentPane() {
           flex: 1,
           overflow: 'auto',
           padding: theme.spacing.lg,
-          paddingBottom: '200px',
+          paddingBottom: '80px',
           display: 'flex',
-          gap: theme.spacing.lg,
-          
+          gap: theme.spacing.xl,
         }}
       >
         <style>{getMarkdownThemeCSS(selectedEntry.markdown_theme || 'github')}</style>
@@ -287,8 +286,9 @@ export function WikiContentPane() {
             color: theme.colors.text.primary,
             fontSize: '15px',
             lineHeight: '1.6',
-            width: '100%',
-            maxWidth: '900px',
+            flex: selectedEntry.featured_image ? '1 1 60%' : '1 1 100%',
+            maxWidth: selectedEntry.featured_image ? '60%' : '900px',
+            minWidth: 0,
           }}
         >
           <ReactMarkdown
@@ -310,24 +310,37 @@ export function WikiContentPane() {
         {selectedEntry.featured_image && (
           <div
             style={{
-              flex: 1,
-              minWidth: '250px',
+              flex: '0 0 35%',
               maxWidth: '400px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: theme.spacing.md,
+              minWidth: '250px',
+              alignSelf: 'flex-start',
             }}
           >
-            <img
-              src={selectedEntry.featured_image}
-              alt={selectedEntry.title}
-              style={{
-                width: '100%',
-                height: 'auto',
-                borderRadius: theme.borderRadius,
-                objectFit: 'cover',
-              }}
-            />
+            <div style={{
+              position: 'sticky',
+              top: '16px',
+            }}>
+              <img
+                src={selectedEntry.featured_image}
+                alt={selectedEntry.title}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  borderRadius: theme.borderRadius,
+                  objectFit: 'cover',
+                  boxShadow: theme.shadow,
+                }}
+              />
+              <p style={{
+                fontSize: theme.fontSize.sm,
+                color: theme.colors.text.tertiary,
+                marginTop: '2rem',
+                fontStyle: 'italic',
+                textAlign: 'center'
+              }}>
+                {selectedEntry.title}
+              </p>
+            </div>
           </div>
         )}
       </div>
