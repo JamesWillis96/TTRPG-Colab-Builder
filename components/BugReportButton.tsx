@@ -95,7 +95,7 @@ export default function BugReportButton() {
         aria-label="Report a bug"
         style={{
             position: 'fixed',
-            bottom: '24px',
+            bottom: '0px',
             right: '24px',
             backgroundColor: 'transparent',
             border: 'none',
@@ -114,8 +114,8 @@ export default function BugReportButton() {
         <svg
             xmlns="http://www.w3.org/2000/svg"
             version="1.1"
-            width="50" // Adjusted size for visibility without a circle
-            height="50"
+            width="30" // Adjusted size for visibility without a circle
+            height="30"
             viewBox="-5.0 -10.0 110.0 135.0"
             fill="currentColor" // This makes the path use the button's red color
         >
