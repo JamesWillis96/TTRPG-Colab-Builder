@@ -74,7 +74,7 @@ export interface WikiContextType {
   recentEntries: WikiEntry[]
 
   // Actions
-  selectEntry: (entry: WikiEntry) => void
+  selectEntry: (entry: WikiEntry, options?: { suppressUrl?: boolean }) => void
   updateSearchQuery: (query: string) => void
   updateCategory: (category: string) => void
   setSidebarOpen: (open: boolean) => void
@@ -125,6 +125,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
   const [isRevisionsModalOpen, setIsRevisionsModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<WikiEntry | null>(null)
   const [selectedMarkdownTheme, setSelectedMarkdownTheme] = useState<MarkdownTheme>('github')
+  const [initialEntrySlug, setInitialEntrySlug] = useState<string | null>(null)
 
   // Derived data
   const categories = ['All', ...new Set(entries.map(e => e.category))]
@@ -152,6 +153,14 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
       reloadEntries()
     }
   }, [user])
+
+  // Capture initial entry slug from query string (for deep link /wiki?entry=slug)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const slug = params.get('entry')
+    if (slug) setInitialEntrySlug(slug)
+  }, [])
 
   // Load recently viewed from localStorage
   useEffect(() => {
@@ -207,7 +216,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Select an entry and update tracking
-  function selectEntry(entry: WikiEntry) {
+  function selectEntry(entry: WikiEntry, options?: { suppressUrl?: boolean }) {
     setSelectedEntry(entry)
 
     // Close sidebar on mobile after selection
@@ -229,13 +238,25 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Update URL for deep linking
-    const slug = entry.slug || entry.id
-    window.history.pushState(
-      { entryId: entry.id },
-      entry.title,
-      `/wiki?entry=${slug}`
-    )
+    if (!options?.suppressUrl) {
+      const slug = entry.slug || entry.id
+      window.history.pushState(
+        { entryId: entry.id },
+        entry.title,
+        `/wiki?entry=${slug}`
+      )
+    }
   }
+
+  // Auto-select entry if query param matches after entries load
+  useEffect(() => {
+    if (!initialEntrySlug || selectedEntry || entries.length === 0) return
+    const match = entries.find(e => e.slug === initialEntrySlug || e.id === initialEntrySlug)
+    if (match) {
+      selectEntry(match, { suppressUrl: true })
+      setInitialEntrySlug(null)
+    }
+  }, [initialEntrySlug, entries, selectedEntry])
 
   // Save (create or update) an entry
   async function saveEntry(data: EntryFormData, entryIdToUpdate?: string) {

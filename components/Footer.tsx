@@ -8,18 +8,22 @@ export default function Footer() {
   return (
     <footer style={{
       position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
+      bottom: theme.spacing.sm,
+      left: '50%',
+      transform: 'translateX(-50%)',
       background: theme.colors.background.tertiary,
-      borderTop: `1px solid ${theme.colors.border.primary}`,
+      border: `1px solid ${theme.colors.border.primary}`,
       padding: `${theme.spacing.sm} ${theme.spacing.md}`,
       textAlign: 'center',
       fontSize: theme.fontSize.sm,
       color: theme.colors.text.secondary,
       zIndex: 100,
       backdropFilter: 'blur(8px)',
-      backgroundColor: `${theme.colors.background.tertiary}ee`
+      backgroundColor: `${theme.colors.background.tertiary}ee`,
+      borderRadius: theme.borderRadius,
+      boxShadow: theme.shadow,
+      maxWidth: '90vw',
+      minWidth: '320px'
     }}>
       <p style={{ margin: 0 }}>
         ⚠️ <strong>Beta Version</strong> - This site is in active development. Changes and improvements are sure to happen. If you find any bugs or have a suggestion, please click the bug to the right 

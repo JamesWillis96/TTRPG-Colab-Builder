@@ -37,7 +37,7 @@ type SessionRow = {
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth()
-  const { theme, styles } = useTheme()
+  const { theme, styles, isDark } = useTheme()
   const router = useRouter()
 
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -148,7 +148,7 @@ export default function DashboardPage() {
         alignItems: 'center',
         minHeight: 'calc(100vh - 80px)',
         fontSize: '1.25rem',
-        color: '#888'
+        color: theme.colors.text.secondary
       }}>
         Loading...
       </div>
@@ -161,7 +161,9 @@ export default function DashboardPage() {
     <main style={{
       minHeight: 'calc(100vh - 80px)',
       overflow: 'visible',
-      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundImage: isDark 
+        ? 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)'
+        : 'url(https://images.pdimagearchive.org/collections/bracelli-s-bizzarie-di-varie-figure-1624/46848687324_d613e135b4_b.jpg?width=1000&height=800)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
@@ -173,7 +175,9 @@ export default function DashboardPage() {
       <div style={{
         position: 'absolute',
         inset: 0,
-        background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.7) 50%, rgba(15, 23, 42, 0.5) 100%)',
+        background: isDark
+          ? 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.7) 50%, rgba(15, 23, 42, 0.5) 100%)'
+          : 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.4) 100%)',
         pointerEvents: 'none'
       }} />
       <div style={{
@@ -184,7 +188,13 @@ export default function DashboardPage() {
         flexDirection: 'column',
         gap: '2rem',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        background: isDark
+          ? 'rgba(30, 41, 59, 0.5)'
+          : 'rgba(255, 255, 255, 0.5)',
+        borderRadius: '8px',
+        marginTop: '2rem',
+        marginBottom: '2rem'
       }}>
 
         {/* Welcome Section */}
@@ -196,13 +206,6 @@ export default function DashboardPage() {
           }}>
             Welcome back, {profile.username}! 👋
           </h1>
-          <p style={{
-            color: theme.colors.text.secondary,
-            fontSize: '0.95rem',
-            margin: 0
-          }}>
-            Here's what's happening in your campaign
-          </p>
         </section>
 
         {/* Campaign Stats */}

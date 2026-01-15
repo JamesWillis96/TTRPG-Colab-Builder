@@ -96,8 +96,8 @@ export default function BugReportButton() {
         aria-label="Report a bug"
         style={{
             position: 'fixed',
-            bottom: '0px',
-            right: '24px',
+            bottom: '0.5rem',
+            right: '30rem',
             backgroundColor: 'transparent',
             border: 'none',
             padding: '0',

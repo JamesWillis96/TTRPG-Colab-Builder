@@ -19,6 +19,7 @@ type POI = {
   view_count?: number
   discovered_at?: string
   discovered_in_session_id?: string
+  color?: string
 }
 
 type WikiPage = {
@@ -43,6 +44,7 @@ export default function MapEditorPage() {
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null)
   const [selectedWikiPage, setSelectedWikiPage] = useState<WikiPage | null>(null)
   const [playerViewMode, setPlayerViewMode] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
   const [visibleCategories, setVisibleCategories] = useState<Record<string, boolean>>({
     location: true,
     npc: true,
@@ -71,6 +73,7 @@ export default function MapEditorPage() {
   const [poiTitle, setPoiTitle] = useState('')
   const [poiCategory, setPoiCategory] = useState('location')
   const [poiVisibility, setPoiVisibility] = useState('public')
+  const [poiColor, setPoiColor] = useState('#ef4444')
   const [movingPoiId, setMovingPoiId] = useState<string | null>(null)
   const [movingOffset, setMovingOffset] = useState({ x: 0, y: 0 })
 
@@ -84,6 +87,16 @@ export default function MapEditorPage() {
   const [lastTouchCenter, setLastTouchCenter] = useState({ x: 0, y: 0 })
 
   const isGM = profile?.role === 'gm' || profile?.role === 'admin'
+
+  // Force player view for non-GM roles
+  useEffect(() => {
+    if (!profile?.role) return
+    if (profile.role === 'player') {
+      setPlayerViewMode(true)
+    } else if (profile.role === 'gm' || profile.role === 'admin') {
+      setPlayerViewMode(false)
+    }
+  }, [profile?.role])
 
   // Auth & Load
   useEffect(() => {
@@ -219,13 +232,27 @@ export default function MapEditorPage() {
   }
 
   // Get POI icon by category
-  const getPOIIcon = (category: string) => {
+  const getPOIIcon = (category: string, color?: string) => {
+    if (category === 'location') {
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="19.785 65.718 63.181 125"
+          style={{ width: '40px', height: '80px', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.8))` }}
+        >
+          <path
+            d="M67.463,129.923C54.3,148.789,52.398,164.73,52.398,164.73c-0.292,1.316-1.462,1.316-1.755,0 c0,0-2.486-15.941-15.356-34.808c-10.676-14.918-15.502-20.769-15.502-32.907c0-17.404,13.894-31.298,31.444-31.298 c17.404,0,31.737,13.894,31.737,31.298C82.966,109.154,73.605,121.001,67.463,129.923z M63.66,97.601 c0-6.728-5.265-11.992-12.139-11.992c-6.436,0-11.847,5.265-11.847,11.992s5.411,12.432,11.847,12.432 C58.396,110.032,63.66,104.328,63.66,97.601z"
+            fill={color || '#ef4444'}
+          />
+        </svg>
+      )
+    }
     switch (category) {
       case 'npc':
       case 'player character':
         return '👤'
       case 'faction':
-        return '🛡️'
+        return '🛉️'
       case 'item':
         return '⚔️'
       case 'lore':
@@ -382,7 +409,6 @@ export default function MapEditorPage() {
   // Right-click to create POI
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    if (!isGM) return // Only GMs can create POIs
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
     const clickX = e.clientX - rect.left
@@ -393,6 +419,13 @@ export default function MapEditorPage() {
     const ratioY = mapY / mapDimensions.height
     setNewPoiPosition({ x: ratioX, y: ratioY })
     setPopupPosition({ x: e.clientX, y: e.clientY })
+
+    // Players are restricted to rumored locations
+    if (!isGM) {
+      setPoiCategory('location')
+      setPoiVisibility('rumored')
+      setPoiColor('#ef4444')
+    }
     setShowCreatePopup(true)
   }
 
@@ -401,13 +434,16 @@ export default function MapEditorPage() {
     if (!poiTitle.trim() || !user) return
     try {
       const slug = poiTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      const enforcedCategory = isGM ? poiCategory : 'location'
+      const enforcedVisibility = isGM ? poiVisibility : 'rumored'
+      const enforcedColor = enforcedCategory === 'location' ? poiColor : undefined
       const { data: wikiPage, error: wikiError } = await supabase
         .from('wiki_pages')
         .insert({
           title: poiTitle,
           slug,
           content: `# ${poiTitle}\n\nA location on the world map.\n\n## Description\n\n*Add description here*`,
-          category: poiCategory,
+          category: enforcedCategory,
           author_id: user.id
         })
         .select()
@@ -422,8 +458,9 @@ export default function MapEditorPage() {
           title: poiTitle,
           wiki_page_id: wikiPage.id,
           created_by: user.id,
-          category: poiCategory,
-          visibility: poiVisibility
+          category: enforcedCategory,
+          visibility: enforcedVisibility,
+          color: enforcedColor
         })
         .select()
         .single()
@@ -433,6 +470,7 @@ export default function MapEditorPage() {
       setShowCreatePopup(false)
       setPoiTitle('')
       setPoiVisibility('public')
+      setPoiColor('#ef4444')
       handleSelectPoi(newPoi)
     } catch (error: any) {
       alert('Error creating POI: ' + error.message)
@@ -535,7 +573,7 @@ export default function MapEditorPage() {
               border: 'none',
               color: theme.colors.text.secondary,
               cursor: 'pointer',
-              fontSize: '1.2rem',
+              fontSize: '0.5rem',
               padding: 0
             }}
           >
@@ -654,7 +692,7 @@ export default function MapEditorPage() {
                   onMouseEnter={() => setHoveredPoiId(poi.id)}
                   onMouseLeave={() => setHoveredPoiId(null)}
                 >
-                  <span>{getPOIIcon(poi.category || 'location')}</span>
+                  <span style={{ fontSize: '0.3rem', display: 'flex', alignItems: 'center' }}>{getPOIIcon(poi.category || 'location', poi.color)}</span>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {poi.title}
                   </span>
@@ -667,39 +705,41 @@ export default function MapEditorPage() {
           )}
         </div>
 
-        {/* Create POI Button */}
-        {isGM && (
-          <div style={{ padding: '0.75rem', borderTop: `1px solid ${theme.colors.border.primary}` }}>
-            <button
-              onClick={() => {
-                if (containerRef.current) {
-                  const rect = containerRef.current.getBoundingClientRect()
-                  const centerX = (rect.width / 2 - position.x) / scale
-                  const centerY = (rect.height / 2 - position.y) / scale
-                  setNewPoiPosition({
-                    x: centerX / mapDimensions.width,
-                    y: centerY / mapDimensions.height
-                  })
-                  setPopupPosition({ x: rect.width / 2, y: rect.height / 2 })
-                }
-                setShowCreatePopup(true)
-              }}
-              style={{
-                width: '100%',
-                padding: '8px',
-                background: theme.colors.primary,
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.borderRadius,
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: 'bold'
-              }}
-            >
-              + New Location
-            </button>
-          </div>
-        )}
+        {/* Create POI Button (players limited to rumored locations) */}
+        <div style={{ padding: '0.75rem', borderTop: `1px solid ${theme.colors.border.primary}` }}>
+          <button
+            onClick={() => {
+              if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect()
+                const centerX = (rect.width / 2 - position.x) / scale
+                const centerY = (rect.height / 2 - position.y) / scale
+                setNewPoiPosition({
+                  x: centerX / mapDimensions.width,
+                  y: centerY / mapDimensions.height
+                })
+                setPopupPosition({ x: rect.width / 2, y: rect.height / 2 })
+              }
+              if (!isGM) {
+                setPoiCategory('location')
+                setPoiVisibility('rumored')
+              }
+              setShowCreatePopup(true)
+            }}
+            style={{
+              width: '100%',
+              padding: '8px',
+              background: theme.colors.primary,
+              color: 'white',
+              border: 'none',
+              borderRadius: theme.borderRadius,
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 'bold'
+            }}
+          >
+            + New Location
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Toggle */}
@@ -789,7 +829,7 @@ export default function MapEditorPage() {
             >
               <div
                 style={{
-                  fontSize: '6rem',
+                  fontSize: '0.6rem',
                   filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.8))`,
                   transition: 'transform 0.2s',
                   transform: isHovered || isSelected ? 'scale(1.3)' : 'scale(1)',
@@ -798,7 +838,7 @@ export default function MapEditorPage() {
                   position: 'relative'
                 }}
               >
-                {getPOIIcon(poi.category || 'location')}
+                {getPOIIcon(poi.category || 'location', poi.color)}
                 {poi.visibility === 'rumored' && (
                   <div style={{
                     position: 'absolute',
@@ -894,6 +934,24 @@ export default function MapEditorPage() {
           }}
         >
           🏠 Fit View
+        </button>
+
+        {/* Help Button */}
+        <button
+          onClick={() => setShowHelpModal(!showHelpModal)}
+          style={{
+            padding: '0.5rem 0.75rem',
+            background: showHelpModal ? theme.colors.primary : theme.colors.background.secondary,
+            color: showHelpModal ? 'white' : theme.colors.text.primary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 'bold'
+          }}
+          title="Keyboard shortcuts and interactions"
+        >
+          ❓ Help
         </button>
 
         {/* Zoom Display */}
@@ -1213,13 +1271,19 @@ export default function MapEditorPage() {
                 value={poiCategory}
                 onChange={e => setPoiCategory(e.target.value)}
                 style={styles.select}
+                disabled={!isGM}
               >
                 <option value="location">📍 Location</option>
-                <option value="npc">👤 NPC</option>
-                <option value="faction">🛡️ Faction</option>
-                <option value="item">⚔️ Item</option>
-                <option value="lore">📜 Lore</option>
+                {isGM && <option value="npc">👤 NPC</option>}
+                {isGM && <option value="faction">🛡️ Faction</option>}
+                {isGM && <option value="item">⚔️ Item</option>}
+                {isGM && <option value="lore">📜 Lore</option>}
               </select>
+              {!isGM && (
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: theme.colors.text.secondary }}>
+                  Players can add locations only.
+                </p>
+              )}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
@@ -1228,12 +1292,33 @@ export default function MapEditorPage() {
                 value={poiVisibility}
                 onChange={e => setPoiVisibility(e.target.value)}
                 style={styles.select}
+                disabled={!isGM}
               >
                 <option value="public">👁️ Public (All players can see)</option>
                 <option value="rumored">❓ Rumored (Players know vaguely)</option>
-                <option value="gm_only">🔒 GM Only (Hidden from players)</option>
+                {isGM && <option value="gm_only">🔒 GM Only (Hidden from players)</option>}
               </select>
+              {!isGM && (
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: theme.colors.text.secondary }}>
+                  Players add rumored locations only.
+                </p>
+              )}
             </div>
+
+            {(isGM && poiCategory === 'location') && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={styles.label}>Pin Color</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={poiColor}
+                    onChange={e => setPoiColor(e.target.value)}
+                    style={{ width: '80px', height: '40px', cursor: 'pointer', border: 'none', borderRadius: theme.borderRadius }}
+                  />
+                  <span style={{ fontSize: '0.875rem', color: theme.colors.text.secondary }}>{poiColor}</span>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button 
@@ -1253,11 +1338,138 @@ export default function MapEditorPage() {
                   setShowCreatePopup(false)
                   setPoiTitle('')
                   setPoiVisibility('public')
+                  setPoiColor('#ef4444')
                 }} 
                 style={{ ...styles.button.secondary, flex: 1 }}
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 99,
+              background: 'rgba(0,0,0,0.5)'
+            }}
+            onClick={() => setShowHelpModal(false)}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: theme.colors.background.secondary,
+              border: `2px solid ${theme.colors.primary}`,
+              borderRadius: theme.borderRadius,
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              zIndex: 100
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ ...styles.heading1, margin: 0 }}>🗺️ Map Controls</h2>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.colors.text.secondary,
+                  cursor: 'pointer',
+                  fontSize: '1.5rem',
+                  padding: 0
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Navigation */}
+              <div>
+                <h3 style={{ ...styles.heading2, margin: '0 0 0.75rem 0', color: theme.colors.primary }}>Navigation</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>🖱️ Drag</span>
+                    <span style={{ color: theme.colors.text.primary }}>Pan the map by clicking and dragging</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>🔄 Scroll</span>
+                    <span style={{ color: theme.colors.text.primary }}>Zoom in and out using your mouse wheel</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>📍 Touch</span>
+                    <span style={{ color: theme.colors.text.primary }}>Pinch to zoom on touch devices</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Creating POIs */}
+              <div>
+                <h3 style={{ ...styles.heading2, margin: '0 0 0.75rem 0', color: theme.colors.primary }}>Creating Locations</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>Right-Click</span>
+                    <span style={{ color: theme.colors.text.primary }}>Right-click anywhere on the map to create a new location</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>+ Button</span>
+                    <span style={{ color: theme.colors.text.primary }}>Use the create button in the left sidebar (for other categories)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Editing */}
+              {isGM && (
+                <div>
+                  <h3 style={{ ...styles.heading2, margin: '0 0 0.75rem 0', color: theme.colors.primary }}>Editing Locations (GM Only)</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>Ctrl + Drag</span>
+                      <span style={{ color: theme.colors.text.primary }}>Drag a location while holding Ctrl to move it</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <span style={{ fontWeight: 'bold', minWidth: '100px', color: theme.colors.text.secondary }}>Click</span>
+                      <span style={{ color: theme.colors.text.primary }}>Click a location to select it and view/edit details</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Visibility */}
+              <div>
+                <h3 style={{ ...styles.heading2, margin: '0 0 0.75rem 0', color: theme.colors.primary }}>Visibility Levels</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.2rem' }}>👁️</span>
+                    <span style={{ color: theme.colors.text.primary }}><strong>Public:</strong> All players can see this location</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.2rem' }}>❓</span>
+                    <span style={{ color: theme.colors.text.primary }}><strong>Rumored:</strong> Players know about it vaguely</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                    <span style={{ color: theme.colors.text.primary }}><strong>GM Only:</strong> Hidden from players (GM view only)</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </>
