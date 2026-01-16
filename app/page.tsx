@@ -212,6 +212,41 @@ export default function DashboardPage() {
           </h1>
         </section>
 
+        {/* Creative Tools */}
+        <section style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '1rem'
+        }}>
+          <div style={{
+            background: theme.colors.background.secondary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            padding: '1rem',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, color: theme.colors.text.primary }}>Mad Libs</h2>
+              <span style={{ color: theme.colors.text.secondary }}>idea generator</span>
+            </div>
+            <p style={{ color: theme.colors.text.secondary }}>
+              Quickly spin up NPCs, encounters, items, and hooks with guided blanks.
+            </p>
+            <button
+              onClick={() => router.push('/madlibs')}
+              style={{
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                background: theme.colors.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: theme.borderRadius,
+                cursor: 'pointer'
+              }}
+            >
+              Open Mad Libs
+            </button>
+          </div>
+        </section>
+
         {/* Campaign Stats */}
         <section style={{
           display: 'grid',

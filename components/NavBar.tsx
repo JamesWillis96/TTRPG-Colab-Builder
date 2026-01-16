@@ -74,11 +74,14 @@ export default function Navbar() {
           <Link id="sessions-nav-link" href="/sessions" style={{ color: theme.colors.text.primary }}>
             Sessions
           </Link>
-          <Link href="/tables" style={{ color: theme.colors.text.primary }}>
-            Tables
-          </Link>
           <Link id="wiki-nav-link" href="/wiki" style={{ color: theme.colors.text.primary }}>
             Wiki
+          </Link>
+          <Link href="/madlibs" style={{ color: theme.colors.text.primary }}>
+            Mad Libs
+          </Link>
+          <Link href="/tables" style={{ color: theme.colors.text.primary }}>
+            Tables
           </Link>
           <Link href="/map" style={{ color: theme.colors.text.primary }}>
             Map
@@ -221,6 +224,47 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
+              <Link href="/wiki">
+                <button style={{ color: theme.colors.text.primary, fontWeight: 'normal' }}>
+                  <svg
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    stroke={theme.colors.text.primary}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    height="17.5"
+                    width="17.5"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                  <span>Wiki</span>
+                </button>
+              </Link>
+            </li>
+            <li>
+              <Link href="/madlibs">
+                <button style={{ color: theme.colors.text.primary, fontWeight: 'normal' }}>
+                  <svg
+                    stroke-linejoin="round"
+                    stroke-linecap="round"
+                    stroke-width="2"
+                    stroke={theme.colors.text.primary}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    height="17.5"
+                    width="17.5"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22h11A2.5 2.5 0 0 0 20 19.5V6a2 2 0 0 0-2-2h-3l-1-1h-4l-1 1H6a2 2 0 0 0-2 2z"></path>
+                  </svg>
+                  <span>Mad Libs</span>
+                </button>
+              </Link>
+            </li>
+            <li>
               <Link href="/tables">
                 <button style={{ color: theme.colors.text.primary, fontWeight: 'normal' }}>
                   <svg
@@ -241,27 +285,6 @@ export default function Navbar() {
                     <line x1="15" y1="3" x2="15" y2="21"></line>
                   </svg>
                   <span>Tables</span>
-                </button>
-              </Link>
-            </li>
-            <li>
-              <Link href="/wiki">
-                <button style={{ color: theme.colors.text.primary, fontWeight: 'normal' }}>
-                  <svg
-                    stroke-linejoin="round"
-                    stroke-linecap="round"
-                    stroke-width="2"
-                    stroke={theme.colors.text.primary}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    height="17.5"
-                    width="17.5"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                  </svg>
-                  <span>Wiki</span>
                 </button>
               </Link>
             </li>

@@ -14,7 +14,7 @@ export default function Footer() {
       background: theme.colors.background.tertiary,
       border: `1px solid ${theme.colors.border.primary}`,
       padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-      paddingRight: '0rem',
+      paddingRight: theme.spacing.md,
       textAlign: 'center',
       fontSize: theme.fontSize.sm,
       color: theme.colors.text.secondary,
@@ -27,7 +27,7 @@ export default function Footer() {
       minWidth: '320px'
     }}>
       <p style={{ margin: 0 }}>
-        ⚠️ <strong>Beta Version</strong> - This site is in active development. Report bugs here:
+        ⚠️ <strong>Beta Version</strong> - This site is in active development.
       </p>
     </footer>
   )

@@ -17,6 +17,7 @@ export default function BugReportButton() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [showTooltip, setShowTooltip] = useState(false)
 
   // Capture page URL when modal opens
   useEffect(() => {
@@ -90,33 +91,43 @@ export default function BugReportButton() {
   return (
   <>
     {/* Floating Action Button */}
-    <button
-        id="bug-report-button"
-        onClick={() => setIsOpen(true)}
-        aria-label="Report a bug"
-        style={{
-            position: 'fixed',
-            bottom: '.75rem',
-            right: '41.5rem',
-            background: theme.colors.background.tertiary,            
-            border: 'none',
-            padding: '0',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#dc2626', // Icon color (Red)
-            transition: 'transform 0.2s',
-            zIndex: 999,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-        >
+    <div
+      style={{
+        position: 'fixed',
+        bottom: theme.spacing.sm,
+        left: theme.spacing.md,
+        zIndex: 999,
+      }}
+    >
+      <button
+          id="bug-report-button"
+          onClick={() => setIsOpen(true)}
+          aria-label="Report a bug"
+          style={{
+              background: theme.colors.background.tertiary,            
+              border: 'none',
+              padding: '0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#dc2626', // Icon color (Red)
+              transition: 'transform 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)'
+            setShowTooltip(true)
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)'
+            setShowTooltip(false)
+          }}
+          >
         <svg
             xmlns="http://www.w3.org/2000/svg"
             version="1.1"
-            width="30" // Adjusted size for visibility without a circle
-            height="30"
+            width="50" // Adjusted size for visibility without a circle
+            height="50"
             viewBox="-5.0 -10.0 110.0 135.0"
             fill="currentColor" // This makes the path use the button's red color
         >
@@ -124,8 +135,30 @@ export default function BugReportButton() {
         </svg>
     </button>
 
-
-      {/* Modal Overlay */}
+      {/* Tooltip */}
+      {showTooltip && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '60px',
+            left: 'calc(50% + 2rem)',
+            transform: 'translateX(-50%)',
+            backgroundColor: theme.colors.background.secondary,
+            color: theme.colors.text.primary,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            borderRadius: theme.borderRadius,
+            fontSize: '12px',
+            whiteSpace: 'nowrap',
+            zIndex: 1000,
+            border: `1px solid ${theme.colors.border}`,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            animation: 'fadeIn 0.2s ease-in-out',
+          }}
+        >
+          Report a bug or feedback
+        </div>
+      )}
+    </div>
       {isOpen && (
         <div
           style={{
