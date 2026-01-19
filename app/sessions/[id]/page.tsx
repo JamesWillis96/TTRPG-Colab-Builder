@@ -34,7 +34,7 @@ type Signup = {
 }
 
 export default function SessionDetailPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
@@ -46,6 +46,53 @@ export default function SessionDetailPage() {
   const [signups, setSignups] = useState<Signup[]>([])
   const [loading, setLoading] = useState(true)
   const [isGM, setIsGM] = useState(false)
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [guestError, setGuestError] = useState('')
+  const [guestLoading, setGuestLoading] = useState(false)
+  // Helper: is guest user (anonymous, no profile)
+  const isGuest = user && (!profile || profile.role === 'guest' || profile.username?.toLowerCase().startsWith('guest'))
+  // Guest sign up handler
+  const handleGuestSignup = async () => {
+    setGuestError('')
+    if (!guestName.trim()) {
+      setGuestError('Please enter a name.')
+      return
+    }
+    setGuestLoading(true)
+    try {
+      // 1. Create guest profile if not exists
+      let guestProfileId = user?.id
+      if (!profile) {
+        const { data: newProfile, error: profileErr } = await supabase
+          .from('profiles')
+          .insert([{ id: user?.id, username: guestName, role: 'guest' }])
+          .select()
+          .single()
+        if (profileErr) throw profileErr
+        guestProfileId = newProfile.id
+      } else if (profile.username !== guestName) {
+        // Update username if changed
+        const { error: updateErr } = await supabase
+          .from('profiles')
+          .update({ username: guestName })
+          .eq('id', user?.id)
+        if (updateErr) throw updateErr
+      }
+      // 2. Add to session_players
+      const { error: signupErr } = await supabase
+        .from('session_players')
+        .insert([{ session_id: sessionId, player_id: guestProfileId }])
+      if (signupErr) throw signupErr
+      setShowGuestModal(false)
+      setGuestName('')
+      await loadSession()
+    } catch (err: any) {
+      setGuestError(err.message || 'Could not sign up as guest')
+    } finally {
+      setGuestLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (sessionId) {
@@ -247,7 +294,7 @@ export default function SessionDetailPage() {
         )}
       </div>
 
-      {/* Players List */}
+      {/* Players List & Guest Signup */}
       <div style={styles.section}>
         <h2 style={styles.heading2}>
           Signed Up Players ({signups.length})
@@ -293,7 +340,90 @@ export default function SessionDetailPage() {
             ))}
           </div>
         )}
+
+        {/* Guest sign up block */}
+        {isGuest && !signups.some(s => s.player_id === user?.id) && session.status === 'open' && (
+          <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+            <button
+              style={{
+                ...styles.button.primary,
+                fontSize: '1.1rem',
+                padding: '0.75rem 2rem',
+                margin: '0 auto',
+                display: 'block'
+              }}
+              onClick={() => setShowGuestModal(true)}
+            >
+              Sign Up for This Session
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Guest Name Modal */}
+      {showGuestModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: theme.colors.background.secondary,
+            borderRadius: theme.borderRadius,
+            padding: '2rem',
+            minWidth: 320,
+            boxShadow: '0 4px 32px rgba(0,0,0,0.25)',
+            border: `1px solid ${theme.colors.border.primary}`
+          }}>
+            <h3 style={{ color: theme.colors.text.primary, marginBottom: '1rem' }}>Enter Your Name</h3>
+            <input
+              type="text"
+              value={guestName}
+              onChange={e => setGuestName(e.target.value)}
+              placeholder="Display name for this session"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: theme.borderRadius,
+                border: `1px solid ${theme.colors.border.primary}`,
+                fontSize: '1rem',
+                marginBottom: '1rem',
+                background: theme.colors.background.input,
+                color: theme.colors.text.primary
+              }}
+              maxLength={32}
+              autoFocus
+              disabled={guestLoading}
+            />
+            {guestError && (
+              <div style={{ color: theme.colors.danger, marginBottom: '1rem', fontSize: '0.95rem' }}>{guestError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowGuestModal(false)}
+                style={{ ...styles.button.secondary, minWidth: 90 }}
+                disabled={guestLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGuestSignup}
+                style={{ ...styles.button.primary, minWidth: 120 }}
+                disabled={guestLoading}
+              >
+                {guestLoading ? 'Signing Up...' : 'Sign Up'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

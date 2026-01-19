@@ -13,34 +13,44 @@ const DIFFICULTIES = ['simple', 'moderate', 'complex'] as const
 const STAKES = ['low', 'medium', 'high'] as const
 const BLANK_TYPES = ['creative', 'constrained', 'consequence', 'specific'] as const
 
-type Step = 'basics' | 'blanks' | 'template' | 'preview'
-
 export default function CreateMadLibTemplatePage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const { theme, styles } = useTheme()
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login')
-    }
-  }, [user, authLoading, router])
-
-  const [currentStep, setCurrentStep] = useState<Step>('basics')
+  // --- State ---
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('NPCs')
   const [difficulty, setDifficulty] = useState<(typeof DIFFICULTIES)[number]>('simple')
   const [stakes, setStakes] = useState<(typeof STAKES)[number]>('medium')
   const [toneInput, setToneInput] = useState('')
-  const tones = useMemo(() => toneInput.split(',').map(t => t.trim()).filter(Boolean), [toneInput])
   const [templateText, setTemplateText] = useState('# [TITLE]\n\nYour content with [BLANK_IDS] here...')
   const [blanks, setBlanks] = useState<MadLibBlank[]>([])
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor')
+  const [showMetadata, setShowMetadata] = useState(true)
 
+  const tones = useMemo(() => toneInput.split(',').map(t => t.trim()).filter(Boolean), [toneInput])
+
+  // --- Auth Check ---
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
+  // --- Handlers ---
   const addBlank = () => {
-    const id = prompt('Blank ID (UPPERCASE letters, underscores)')?.trim()
+    const id = prompt('Blank ID (UPPERCASE letters, underscores). E.g. HERO_NAME')?.trim()
     if (!id) return
+    
+    // Check for duplicate ID
+    if (blanks.some(b => b.id === id)) {
+        alert('A blank with this ID already exists.')
+        return
+    }
+
     setBlanks(prev => ([...prev, { id, name: id, type: 'creative', description: '', allowRoll: false } as MadLibBlank]))
   }
 
@@ -49,7 +59,14 @@ export default function CreateMadLibTemplatePage() {
   }
 
   const removeBlank = (index: number) => {
-    setBlanks(prev => prev.filter((_, i) => i !== index))
+    if (confirm('Are you sure you want to remove this blank?')) {
+        setBlanks(prev => prev.filter((_, i) => i !== index))
+    }
+  }
+
+  const insertBlankToken = (blankId: string) => {
+    navigator.clipboard.writeText(`[${blankId}]`)
+    alert(`Copied [${blankId}] to clipboard!`)
   }
 
   const canSave = useMemo(() => (
@@ -83,29 +100,16 @@ export default function CreateMadLibTemplatePage() {
     setSaving(false)
     if (error) {
       console.error(error)
-      alert('Failed to save template')
+      alert('Failed to save template. Check console for details.')
       return
     }
     router.push(`/madlibs/${data.id}`)
   }
 
-  const steps: { id: Step; label: string; icon: string }[] = [
-    { id: 'basics', label: 'Basic Info', icon: '📝' },
-    { id: 'blanks', label: 'Define Blanks', icon: '🎯' },
-    { id: 'template', label: 'Template Text', icon: '✍️' },
-    { id: 'preview', label: 'Preview & Save', icon: '👁️' },
-  ]
-
-  const canProceed = useMemo(() => {
-    if (currentStep === 'basics') return title.trim() && description.trim()
-    if (currentStep === 'blanks') return blanks.length > 0
-    if (currentStep === 'template') return templateText.trim().length > 20
-    return true
-  }, [currentStep, title, description, blanks, templateText])
-
   const renderPreview = () => {
     let text = templateText
     blanks.forEach((blank) => {
+      // Escape special regex chars in ID if any
       const regex = new RegExp(`\\[${blank.id}\\]`, 'g')
       text = text.replace(regex, `**[${blank.name}]**`)
     })
@@ -113,632 +117,383 @@ export default function CreateMadLibTemplatePage() {
   }
 
   return (
-    <main style={{ ...styles.container, paddingTop: 0 }}>
-      {/* Hero Header */}
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})`,
-          padding: theme.spacing.xl,
-          borderRadius: theme.borderRadius,
-          marginBottom: theme.spacing.lg,
-        }}
-      >
-        <h1 style={{ margin: 0, color: '#fff', fontSize: '2rem', marginBottom: theme.spacing.sm }}>
-          Create Custom Template
-        </h1>
-        <p style={{ color: 'rgba(255, 255, 255, 0.9)', margin: 0, fontSize: '1.05rem' }}>
-          Build your own Mad Lib template with guided blanks and reusable structure
-        </p>
-      </div>
-
-      {/* Step Navigation */}
-      <div
-        style={{
-          display: 'flex',
-          gap: theme.spacing.sm,
-          marginBottom: theme.spacing.lg,
-          overflowX: 'auto',
-          paddingBottom: theme.spacing.sm,
-        }}
-      >
-        {steps.map((step, idx) => (
-          <button
-            key={step.id}
-            onClick={() => setCurrentStep(step.id)}
-            style={{
-              flex: '1 0 auto',
-              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-              borderRadius: theme.borderRadius,
-              border: currentStep === step.id ? 'none' : `1px solid ${theme.colors.border.primary}`,
-              background: currentStep === step.id ? theme.colors.primary : theme.colors.background.secondary,
-              color: currentStep === step.id ? '#fff' : theme.colors.text.primary,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing.xs,
-              fontSize: '0.95rem',
-              fontWeight: currentStep === step.id ? 600 : 400,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span>{step.icon}</span>
-            <span>{step.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Step Content */}
-      <div
-        style={{
-          background: theme.colors.background.secondary,
-          border: `1px solid ${theme.colors.border.primary}`,
-          borderRadius: theme.borderRadius,
-          padding: theme.spacing.lg,
-          minHeight: 400,
-        }}
-      >
-        {/* Step 1: Basics */}
-        {currentStep === 'basics' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, maxWidth: 700 }}>
-            <h2 style={{ margin: 0, color: theme.colors.text.primary, fontSize: '1.3rem' }}>
-              Basic Information
-            </h2>
-            <div>
-              <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                Template Title *
-              </label>
-              <input
-                type="text"
+    <div style={{ 
+        minHeight: '100vh', 
+        background: theme.colors.background.main,
+        display: 'flex',
+        flexDirection: 'column' 
+    }}>
+      {/* 1. Top Bar: Global Actions */}
+      <header style={{
+        padding: `${theme.spacing.sm} ${theme.spacing.xl}`,
+        background: theme.colors.background.secondary,
+        borderBottom: `1px solid ${theme.colors.border.primary}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, flex: 1 }}>
+            <button 
+                onClick={() => router.push('/madlibs')}
+                style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '1.2rem',
+                    cursor: 'pointer',
+                    color: theme.colors.text.secondary
+                }}
+                title="Back"
+            >
+                ←
+            </button>
+            <input 
+                type="text" 
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., The Mysterious Quest-Giver"
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Untitled MadLib Template"
                 style={{
-                  width: '100%',
-                  padding: theme.spacing.sm,
-                  borderRadius: theme.borderRadius,
-                  border: `1px solid ${theme.colors.border.primary}`,
-                  background: theme.colors.background.main,
-                  color: theme.colors.text.primary,
-                  fontSize: '1rem',
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                Description *
-              </label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of what this template generates..."
-                style={{
-                  width: '100%',
-                  padding: theme.spacing.sm,
-                  borderRadius: theme.borderRadius,
-                  border: `1px solid ${theme.colors.border.primary}`,
-                  background: theme.colors.background.main,
-                  color: theme.colors.text.primary,
-                  fontSize: '0.95rem',
-                }}
-              />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: theme.spacing.md }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                  Category
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as any)}
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.sm,
-                    borderRadius: theme.borderRadius,
-                    border: `1px solid ${theme.colors.border.primary}`,
-                    background: theme.colors.background.main,
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold',
                     color: theme.colors.text.primary,
-                  }}
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                  Difficulty
-                </label>
-                <select
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value as any)}
-                  style={{
                     width: '100%',
-                    padding: theme.spacing.sm,
-                    borderRadius: theme.borderRadius,
-                    border: `1px solid ${theme.colors.border.primary}`,
-                    background: theme.colors.background.main,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {DIFFICULTIES.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                  Stakes
-                </label>
-                <select
-                  value={stakes}
-                  onChange={(e) => setStakes(e.target.value as any)}
-                  style={{
-                    width: '100%',
-                    padding: theme.spacing.sm,
-                    borderRadius: theme.borderRadius,
-                    border: `1px solid ${theme.colors.border.primary}`,
-                    background: theme.colors.background.main,
-                    color: theme.colors.text.primary,
-                  }}
-                >
-                  {STAKES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                Tone Tags (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={toneInput}
-                onChange={(e) => setToneInput(e.target.value)}
-                placeholder="e.g., dark, mysterious, humorous"
-                style={{
-                  width: '100%',
-                  padding: theme.spacing.sm,
-                  borderRadius: theme.borderRadius,
-                  border: `1px solid ${theme.colors.border.primary}`,
-                  background: theme.colors.background.main,
-                  color: theme.colors.text.primary,
+                    outline: 'none'
                 }}
-              />
-              {tones.length > 0 && (
-                <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', marginTop: theme.spacing.sm }}>
-                  {tones.map((tone) => (
-                    <span
-                      key={tone}
-                      style={{
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        background: theme.colors.background.main,
-                        border: `1px solid ${theme.colors.border.secondary}`,
-                        borderRadius: theme.borderRadius,
-                        fontSize: '0.85rem',
-                        color: theme.colors.text.secondary,
-                      }}
-                    >
-                      {tone}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Blanks */}
-        {currentStep === 'blanks' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ margin: 0, color: theme.colors.text.primary, fontSize: '1.3rem' }}>Define Blanks</h2>
-                <p style={{ margin: `${theme.spacing.xs} 0 0 0`, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                  Add blanks that users will fill in. Use UPPERCASE_IDS like CHARACTER_NAME.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={addBlank}
-                style={{
-                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                  borderRadius: theme.borderRadius,
-                  border: 'none',
-                  background: theme.colors.primary,
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                + Add Blank
-              </button>
-            </div>
-            {blanks.length === 0 ? (
-              <div
-                style={{
-                  padding: theme.spacing.xl,
-                  textAlign: 'center',
-                  color: theme.colors.text.secondary,
-                  border: `2px dashed ${theme.colors.border.secondary}`,
-                  borderRadius: theme.borderRadius,
-                }}
-              >
-                No blanks yet. Click "Add Blank" to get started.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: theme.spacing.md, maxHeight: 500, overflowY: 'auto', paddingRight: theme.spacing.sm }}>
-                {blanks.map((b, idx) => (
-                  <div
-                    key={b.id}
-                    style={{
-                      border: `1px solid ${theme.colors.border.primary}`,
-                      borderRadius: theme.borderRadius,
-                      padding: theme.spacing.md,
-                      background: theme.colors.background.main,
-                    }}
-                  >
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.85rem' }}>
-                          Blank Name
-                        </label>
-                        <input
-                          type="text"
-                          value={b.name}
-                          onChange={(e) => updateBlank(idx, { name: e.target.value })}
-                          placeholder="Display name"
-                          style={{
-                            width: '100%',
-                            padding: theme.spacing.xs,
-                            borderRadius: theme.borderRadius,
-                            border: `1px solid ${theme.colors.border.primary}`,
-                            background: theme.colors.background.secondary,
-                            color: theme.colors.text.primary,
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.85rem' }}>
-                          Type
-                        </label>
-                        <select
-                          value={b.type}
-                          onChange={(e) => updateBlank(idx, { type: e.target.value as any })}
-                          style={{
-                            width: '100%',
-                            padding: theme.spacing.xs,
-                            borderRadius: theme.borderRadius,
-                            border: `1px solid ${theme.colors.border.primary}`,
-                            background: theme.colors.background.secondary,
-                            color: theme.colors.text.primary,
-                          }}
-                        >
-                          {BLANK_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: theme.spacing.sm }}>
-                      <label style={{ display: 'block', marginBottom: theme.spacing.xs, color: theme.colors.text.secondary, fontSize: '0.85rem' }}>
-                        Description / Guidance
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={b.description}
-                        onChange={(e) => updateBlank(idx, { description: e.target.value })}
-                        placeholder="Help text for users filling this blank..."
-                        style={{
-                          width: '100%',
-                          padding: theme.spacing.xs,
-                          borderRadius: theme.borderRadius,
-                          border: `1px solid ${theme.colors.border.primary}`,
-                          background: theme.colors.background.secondary,
-                          color: theme.colors.text.primary,
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: theme.spacing.xs,
-                          color: theme.colors.text.secondary,
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={!!b.allowRoll}
-                          onChange={(e) => updateBlank(idx, { allowRoll: e.target.checked })}
-                          style={{ cursor: 'pointer' }}
-                        />
-                        Allow Random Roll
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => removeBlank(idx)}
-                        style={{
-                          padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                          borderRadius: theme.borderRadius,
-                          border: `1px solid ${theme.colors.danger}`,
-                          color: theme.colors.danger,
-                          background: 'transparent',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    <div
-                      style={{
-                        marginTop: theme.spacing.sm,
-                        padding: theme.spacing.xs,
-                        background: theme.colors.background.secondary,
-                        borderRadius: theme.borderRadius,
-                        fontSize: '0.85rem',
-                        color: theme.colors.text.secondary,
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      Use in template: [{b.id}]
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Template */}
-        {currentStep === 'template' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, height: '100%' }}>
-            <div>
-              <h2 style={{ margin: 0, color: theme.colors.text.primary, fontSize: '1.3rem' }}>Template Text</h2>
-              <p style={{ margin: `${theme.spacing.xs} 0 0 0`, color: theme.colors.text.secondary, fontSize: '0.9rem' }}>
-                Write your template using markdown. Insert blanks using [BLANK_ID] syntax.
-              </p>
-            </div>
-            <div style={{ flex: 1, minHeight: 400 }}>
-              <textarea
-                value={templateText}
-                onChange={(e) => setTemplateText(e.target.value)}
-                placeholder="# [TITLE]&#10;&#10;Your template content with [BLANK_IDS]..."
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  padding: theme.spacing.md,
-                  borderRadius: theme.borderRadius,
-                  border: `1px solid ${theme.colors.border.primary}`,
-                  background: theme.colors.background.main,
-                  color: theme.colors.text.primary,
-                  fontFamily: 'monospace',
-                  fontSize: '0.95rem',
-                  resize: 'vertical',
-                }}
-              />
-            </div>
-            {blanks.length > 0 && (
-              <div
-                style={{
-                  padding: theme.spacing.sm,
-                  background: theme.colors.background.main,
-                  border: `1px solid ${theme.colors.border.secondary}`,
-                  borderRadius: theme.borderRadius,
-                }}
-              >
-                <div style={{ fontSize: '0.85rem', color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>
-                  Available blanks:
-                </div>
-                <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }}>
-                  {blanks.map((b) => (
-                    <code
-                      key={b.id}
-                      style={{
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        background: theme.colors.background.secondary,
-                        borderRadius: theme.borderRadius,
-                        fontSize: '0.8rem',
-                        color: theme.colors.primary,
-                      }}
-                    >
-                      [{b.id}]
-                    </code>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 4: Preview */}
-        {currentStep === 'preview' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-            <h2 style={{ margin: 0, color: theme.colors.text.primary, fontSize: '1.3rem' }}>Preview & Save</h2>
-            
-            {/* Template Summary */}
-            <div
-              style={{
-                padding: theme.spacing.md,
-                background: theme.colors.background.main,
-                border: `1px solid ${theme.colors.border.primary}`,
-                borderRadius: theme.borderRadius,
-              }}
-            >
-              <h3 style={{ margin: `0 0 ${theme.spacing.sm} 0`, fontSize: '1.1rem', color: theme.colors.text.primary }}>
-                {title || 'Untitled Template'}
-              </h3>
-              <div style={{ color: theme.colors.text.secondary, fontSize: '0.9rem', marginBottom: theme.spacing.sm }}>
-                {description || 'No description'}
-              </div>
-              <div style={{ display: 'flex', gap: theme.spacing.md, fontSize: '0.85rem', color: theme.colors.text.secondary }}>
-                <span>📂 {category}</span>
-                <span>⚡ {difficulty}</span>
-                <span>🎯 {stakes} stakes</span>
-                <span>📝 {blanks.length} blanks</span>
-              </div>
-              {tones.length > 0 && (
-                <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', marginTop: theme.spacing.sm }}>
-                  {tones.map((tone) => (
-                    <span
-                      key={tone}
-                      style={{
-                        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                        background: theme.colors.background.secondary,
-                        border: `1px solid ${theme.colors.border.secondary}`,
-                        borderRadius: theme.borderRadius,
-                        fontSize: '0.75rem',
-                        color: theme.colors.text.secondary,
-                      }}
-                    >
-                      {tone}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Template Preview */}
-            <div>
-              <h3 style={{ margin: `0 0 ${theme.spacing.sm} 0`, fontSize: '1rem', color: theme.colors.text.primary }}>
-                Template Preview
-              </h3>
-              <div
-                style={{
-                  padding: theme.spacing.md,
-                  background: theme.colors.background.main,
-                  border: `1px solid ${theme.colors.border.primary}`,
-                  borderRadius: theme.borderRadius,
-                  maxHeight: 400,
-                  overflowY: 'auto',
-                  whiteSpace: 'pre-wrap',
-                  fontSize: '0.95rem',
-                  lineHeight: 1.6,
-                  color: theme.colors.text.primary,
-                }}
-              >
-                {renderPreview().split('**').map((part, i) =>
-                  i % 2 === 0 ? (
-                    <span key={i}>{part}</span>
-                  ) : (
-                    <strong key={i} style={{ color: theme.colors.primary, background: theme.colors.background.secondary, padding: '2px 4px', borderRadius: 3 }}>
-                      {part}
-                    </strong>
-                  )
-                )}
-              </div>
-            </div>
-
-            {!canSave && (
-              <div
-                style={{
-                  padding: theme.spacing.md,
-                  background: theme.colors.background.main,
-                  border: `1px solid ${theme.colors.danger}`,
-                  borderRadius: theme.borderRadius,
-                  color: theme.colors.danger,
-                  fontSize: '0.9rem',
-                }}
-              >
-                ⚠️ Please complete all required fields: title, description, at least one blank, and template text.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Navigation Footer */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginTop: theme.spacing.lg,
-          paddingTop: theme.spacing.md,
-          borderTop: `1px solid ${theme.colors.border.primary}`,
-        }}
-      >
-        <button
-          onClick={() => router.push('/madlibs')}
-          style={{
-            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-            borderRadius: theme.borderRadius,
-            border: `1px solid ${theme.colors.border.primary}`,
-            background: theme.colors.background.secondary,
-            color: theme.colors.text.primary,
-            cursor: 'pointer',
-          }}
-        >
-          Cancel
-        </button>
-        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-          {currentStep !== 'basics' && (
-            <button
-              onClick={() => {
-                const idx = steps.findIndex((s) => s.id === currentStep)
-                if (idx > 0) setCurrentStep(steps[idx - 1].id)
-              }}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRadius: theme.borderRadius,
-                border: `1px solid ${theme.colors.border.primary}`,
-                background: theme.colors.background.secondary,
-                color: theme.colors.text.primary,
-                cursor: 'pointer',
-              }}
-            >
-              ← Previous
-            </button>
-          )}
-          {currentStep !== 'preview' ? (
-            <button
-              onClick={() => {
-                const idx = steps.findIndex((s) => s.id === currentStep)
-                if (idx < steps.length - 1) setCurrentStep(steps[idx + 1].id)
-              }}
-              disabled={!canProceed}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderRadius: theme.borderRadius,
-                border: 'none',
-                background: canProceed ? theme.colors.primary : theme.colors.background.secondary,
-                color: canProceed ? '#fff' : theme.colors.text.secondary,
-                cursor: canProceed ? 'pointer' : 'not-allowed',
-                fontWeight: 600,
-              }}
-            >
-              Next →
-            </button>
-          ) : (
-            <button
-              onClick={handleSave}
-              disabled={!canSave || saving}
-              style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
-                borderRadius: theme.borderRadius,
-                border: 'none',
-                background: canSave && !saving ? theme.colors.primary : theme.colors.background.secondary,
-                color: canSave && !saving ? '#fff' : theme.colors.text.secondary,
-                cursor: canSave && !saving ? 'pointer' : 'not-allowed',
-                fontWeight: 600,
-              }}
-            >
-              {saving ? 'Saving...' : '💾 Save Template'}
-            </button>
-          )}
+            />
         </div>
+        <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+            <button
+                onClick={handleSave}
+                disabled={!canSave || saving}
+                style={{
+                    padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                    borderRadius: theme.borderRadius,
+                    border: 'none',
+                    background: canSave ? theme.colors.primary : theme.colors.background.tertiary,
+                    color: canSave ? '#fff' : theme.colors.text.muted,
+                    cursor: canSave ? 'pointer' : 'not-allowed',
+                    fontWeight: 600,
+                    boxShadow: canSave ? theme.shadow : 'none'
+                }}
+            >
+                {saving ? 'Saving...' : 'Save Template'}
+            </button>
+        </div>
+      </header>
+
+      {/* 2. Main Workspace */}
+      <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          overflow: 'hidden',
+          flexDirection: 'row', // Default desktop
+          height: 'calc(100vh - 65px)' 
+        }}>
+        
+        {/* LEFT SIDEBAR: Config & Blanks */}
+        <aside style={{ 
+            width: '350px', 
+            minWidth: '300px',
+            borderRight: `1px solid ${theme.colors.border.primary}`,
+            background: theme.colors.background.secondary,
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto'
+        }}>
+            
+            {/* Metadata Section */}
+            <div style={{ borderBottom: `1px solid ${theme.colors.border.primary}` }}>
+                <button 
+                    onClick={() => setShowMetadata(!showMetadata)}
+                    style={{
+                        width: '100%',
+                        padding: theme.spacing.md,
+                        background: 'transparent',
+                        border: 'none',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        color: theme.colors.text.primary,
+                        display: 'flex',
+                        justifyContent: 'space-between'
+                    }}
+                >
+                    <span>Template Settings</span>
+                    <span>{showMetadata ? '▼' : '▶'}</span>
+                </button>
+                
+                {showMetadata && (
+                    <div style={{ padding: theme.spacing.md, paddingTop: 0, display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: theme.fontSize.xs, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>Description</label>
+                            <textarea
+                                rows={2}
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                placeholder="What is this template for?"
+                                style={{
+                                    width: '100%',
+                                    padding: theme.spacing.sm,
+                                    borderRadius: theme.borderRadius,
+                                    border: `1px solid ${theme.colors.border.primary}`,
+                                    background: theme.colors.background.input,
+                                    color: theme.colors.text.primary,
+                                    fontSize: theme.fontSize.sm
+                                }}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: theme.spacing.sm }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: theme.fontSize.xs, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>Category</label>
+                                <select 
+                                    value={category}
+                                    onChange={e => setCategory(e.target.value as any)}
+                                    style={{ width: '100%', padding: theme.spacing.xs, borderRadius: theme.borderRadius, border: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.input, color: theme.colors.text.primary, fontSize: theme.fontSize.sm }}
+                                >
+                                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: theme.fontSize.xs, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>Difficulty</label>
+                                <select 
+                                    value={difficulty}
+                                    onChange={e => setDifficulty(e.target.value as any)}
+                                    style={{ width: '100%', padding: theme.spacing.xs, borderRadius: theme.borderRadius, border: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.input, color: theme.colors.text.primary, fontSize: theme.fontSize.sm }}
+                                >
+                                    {DIFFICULTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: theme.fontSize.xs, color: theme.colors.text.secondary, marginBottom: theme.spacing.xs }}>Tags (comma separated)</label>
+                            <input
+                                type="text"
+                                value={toneInput}
+                                onChange={e => setToneInput(e.target.value)}
+                                placeholder="dark, funny, gritty..."
+                                style={{
+                                    width: '100%',
+                                    padding: theme.spacing.sm,
+                                    borderRadius: theme.borderRadius,
+                                    border: `1px solid ${theme.colors.border.primary}`,
+                                    background: theme.colors.background.input,
+                                    color: theme.colors.text.primary,
+                                    fontSize: theme.fontSize.sm
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Blanks List */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ 
+                    padding: theme.spacing.md, 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    borderBottom: `1px solid ${theme.colors.border.primary}`,
+                    background: theme.colors.background.secondary
+                }}>
+                    <h3 style={{ margin: 0, fontSize: theme.fontSize.md, color: theme.colors.text.primary }}>Blanks ({blanks.length})</h3>
+                    <button
+                        onClick={addBlank}
+                        style={{
+                            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                            fontSize: theme.fontSize.sm,
+                            background: theme.colors.primary,
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: theme.borderRadius,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        + Add
+                    </button>
+                </div>
+                
+                <div style={{ padding: theme.spacing.sm, overflowY: 'auto', flex: 1, gap: theme.spacing.sm, display: 'flex', flexDirection: 'column' }}>
+                    {blanks.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: theme.spacing.lg, color: theme.colors.text.muted, fontSize: theme.fontSize.sm, fontStyle: 'italic' }}>
+                            No blanks yet. Add one to start building your template!
+                        </div>
+                    )}
+                    {blanks.map((b, idx) => (
+                        <div key={idx} style={{ 
+                            padding: theme.spacing.sm, 
+                            background: theme.colors.background.main, 
+                            border: `1px solid ${theme.colors.border.primary}`,
+                            borderRadius: theme.borderRadius,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: theme.spacing.xs
+                        }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 'bold', fontSize: theme.fontSize.sm, color: theme.colors.primary }}>[{b.id}]</span>
+                                <div style={{ display: 'flex', gap: theme.spacing.xs }}>
+                                    <button 
+                                        onClick={() => insertBlankToken(b.id)}
+                                        title="Copy token to clipboard"
+                                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+                                    >📋</button>
+                                    <button 
+                                        onClick={() => removeBlank(idx)}
+                                        title="Remove blank"
+                                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', color: theme.colors.danger }}
+                                    >×</button>
+                                </div>
+                             </div>
+                             
+                             <input 
+                                type="text"
+                                placeholder="Display Name"
+                                value={b.name}
+                                onChange={e => updateBlank(idx, { name: e.target.value })}
+                                style={{ width: '100%', padding: 4, fontSize: theme.fontSize.xs, border: `1px solid ${theme.colors.border.primary}`, borderRadius: 4, background: theme.colors.background.input }}
+                             />
+                             
+                             <select
+                                value={b.type}
+                                onChange={e => updateBlank(idx, { type: e.target.value as any })}
+                                style={{ width: '100%', padding: 4, fontSize: theme.fontSize.xs, border: `1px solid ${theme.colors.border.primary}`, borderRadius: 4, background: theme.colors.background.input }}
+                             >
+                                 {BLANK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                             </select>
+
+                             <input 
+                                type="text"
+                                placeholder="Description/Hint..."
+                                value={b.description}
+                                onChange={e => updateBlank(idx, { description: e.target.value })}
+                                style={{ width: '100%', padding: 4, fontSize: theme.fontSize.xs, border: `1px solid ${theme.colors.border.primary}`, borderRadius: 4, background: theme.colors.background.input }}
+                             />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </aside>
+
+        {/* RIGHT Editor */}
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', background: theme.colors.background.main }}>
+            {/* Toolbar */}
+            <div style={{ 
+                padding: theme.spacing.sm, 
+                borderBottom: `1px solid ${theme.colors.border.primary}`,
+                display: 'flex',
+                gap: theme.spacing.md 
+            }}>
+                <button
+                    onClick={() => setActiveTab('editor')}
+                    style={{
+                        padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                        background: activeTab === 'editor' ? theme.colors.background.secondary : 'transparent',
+                        border: 'none',
+                        borderRadius: theme.borderRadius,
+                        fontWeight: activeTab === 'editor' ? 600 : 400,
+                        color: activeTab === 'editor' ? theme.colors.text.primary : theme.colors.text.muted,
+                        cursor: 'pointer'
+                    }}
+                >
+                    Write Template
+                </button>
+                <button
+                    onClick={() => setActiveTab('preview')}
+                    style={{
+                        padding: `${theme.spacing.sm} ${theme.spacing.lg}`,
+                        background: activeTab === 'preview' ? theme.colors.background.secondary : 'transparent',
+                        border: 'none',
+                        borderRadius: theme.borderRadius,
+                        fontWeight: activeTab === 'preview' ? 600 : 400,
+                        color: activeTab === 'preview' ? theme.colors.text.primary : theme.colors.text.muted,
+                        cursor: 'pointer'
+                    }}
+                >
+                    Preview
+                </button>
+            </div>
+
+            {/* Content Area */}
+            <div style={{ flex: 1, position: 'relative' }}>
+                {activeTab === 'editor' ? (
+                    <textarea
+                        value={templateText}
+                        onChange={e => setTemplateText(e.target.value)}
+                        placeholder="Start writing your madlib here..."
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            padding: theme.spacing.lg,
+                            border: 'none',
+                            outline: 'none',
+                            resize: 'none',
+                            background: theme.colors.background.main,
+                            color: theme.colors.text.primary,
+                            fontSize: '1rem',
+                            fontFamily: 'monospace',
+                            lineHeight: 1.6
+                        }}
+                    />
+                ) : (
+                    <div style={{ 
+                        padding: theme.spacing.lg, 
+                        height: '100%', 
+                        overflowY: 'auto'
+                    }}>
+                        <div style={{ 
+                            background: theme.colors.background.main, 
+                            border: `1px solid ${theme.colors.border.primary}`, 
+                            padding: theme.spacing.xl,
+                            maxWidth: '800px',
+                            margin: '0 auto',
+                            boxShadow: theme.shadow,
+                            borderRadius: theme.borderRadius
+                        }}>
+                             <h2 style={{ textAlign: 'center', marginBottom: theme.spacing.md }}>{title || 'Untitled'}</h2>
+                             <div style={{ 
+                                 whiteSpace: 'pre-wrap', 
+                                 lineHeight: 1.8, 
+                                 fontSize: '1.1rem',
+                                 color: theme.colors.text.primary 
+                             }}>
+                                {renderPreview().split('**').map((part, i) =>
+                                    i % 2 === 0 ? (
+                                        <span key={i}>{part}</span>
+                                    ) : (
+                                        <span key={i} style={{ 
+                                            color: theme.colors.primary, 
+                                            fontWeight: 'bold',
+                                            paddingBottom: '2px',
+                                            borderBottom: `2px dashed ${theme.colors.primary}40`
+                                        }}>
+                                        {part}
+                                        </span>
+                                    )
+                                )}
+                             </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            {/* Helper Bar */}
+            {activeTab === 'editor' && (
+                <div style={{ 
+                    padding: `${theme.spacing.xs} ${theme.spacing.md}`, 
+                    background: theme.colors.background.secondary, 
+                    borderTop: `1px solid ${theme.colors.border.primary}`,
+                    fontSize: theme.fontSize.sm,
+                    color: theme.colors.text.secondary
+                }}>
+                    Tip: Use the clipboard icon on the left to copy blank tokens like [NAME].
+                </div>
+            )}
+        </main>
+
       </div>
-    </main>
+    </div>
   )
 }

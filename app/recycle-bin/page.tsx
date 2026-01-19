@@ -154,31 +154,31 @@ export default function RecycleBinPage() {
   }
 
   return (
-    <main style={styles.container}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+    <main style={{ ...styles.container, padding: '1rem', maxWidth: '920px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         <div>
-          <h1 style={styles.heading1}>Recycle Bin</h1>
-          <p style={{ color: theme.colors.text.secondary, marginTop: '0.25rem' }}>
+          <h1 style={{ ...styles.heading1, marginBottom: '0.25rem' }}>Recycle Bin</h1>
+          <p style={{ color: theme.colors.text.secondary, marginTop: 0, fontSize: '0.9rem' }}>
             Recently deleted items stay here until you restore them. Hard deletes are disabled.
           </p>
         </div>
-        <button onClick={loadDeleted} style={styles.button.secondary}>Refresh</button>
+        <button onClick={loadDeleted} style={{ ...styles.button.secondary, padding: '6px 10px', fontSize: '0.85rem' }}>Refresh</button>
       </div>
 
-      <div style={{ display: 'grid', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gap: '1rem' }}>
         {sections.map(section => (
-          <div key={section.table} style={{ ...styles.card, padding: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h2 style={{ ...styles.heading2, margin: 0 }}>{section.label}</h2>
-              <span style={{ color: theme.colors.text.secondary, fontSize: '0.9em' }}>
+          <div key={section.table} style={{ ...styles.card, padding: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h2 style={{ ...styles.heading2, margin: 0, fontSize: '1.05rem' }}>{section.label}</h2>
+              <span style={{ color: theme.colors.text.secondary, fontSize: '0.85em' }}>
                 {section.items.length} item{section.items.length === 1 ? '' : 's'}
               </span>
             </div>
 
             {section.items.length === 0 ? (
-              <div style={{ color: theme.colors.text.secondary }}>Nothing here.</div>
+              <div style={{ color: theme.colors.text.secondary, fontSize: '0.9em' }}>Nothing here.</div>
             ) : (
-              <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
                 {section.items.map(item => {
                   const key = `${section.table}-${item.id}`
                   return (
@@ -187,23 +187,23 @@ export default function RecycleBinPage() {
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
-                        gap: '1rem',
+                        gap: '0.75rem',
                         alignItems: 'center',
                         border: `1px solid ${theme.colors.border.primary}`,
                         borderRadius: theme.borderRadius,
-                        padding: '0.75rem',
+                        padding: '0.5rem 0.75rem',
                         background: theme.colors.background.secondary
                       }}
                     >
                       <div style={{ display: 'grid', gap: '0.25rem' }}>
-                        <div style={{ color: theme.colors.text.primary, fontWeight: 600 }}>{item.title}</div>
-                        <div style={{ color: theme.colors.text.secondary, fontSize: '0.9em' }}>
+                        <div style={{ color: theme.colors.text.primary, fontWeight: 600, fontSize: '0.95rem' }}>{item.title}</div>
+                        <div style={{ color: theme.colors.text.secondary, fontSize: '0.85em' }}>
                           Deleted {new Date(item.deleted_at).toLocaleString()}{item.extra ? ` • ${item.extra}` : ''}
                         </div>
                       </div>
                       <button
                         onClick={() => restoreItem(section.table, item.id)}
-                        style={styles.button.primary}
+                        style={{ ...styles.button.primary, padding: '6px 10px', fontSize: '0.85rem' }}
                         disabled={!!restoring[key]}
                       >
                         {restoring[key] ? 'Restoring…' : 'Restore'}

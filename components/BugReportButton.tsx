@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -18,6 +18,13 @@ export default function BugReportButton() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [showTooltip, setShowTooltip] = useState(false)
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
+  const isDraggingRef = useRef(false)
+  const dragOffsetRef = useRef({ x: 0, y: 0 })
+  const movedRef = useRef(false)
+
+  const BUTTON_SIZE = 50
+  const EDGE_PADDING = 8
 
   // Capture page URL when modal opens
   useEffect(() => {
@@ -45,6 +52,43 @@ export default function BugReportButton() {
       document.body.style.overflow = 'unset'
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (position) return
+    setPosition({
+      x: EDGE_PADDING,
+      y: window.innerHeight - EDGE_PADDING - BUTTON_SIZE
+    })
+  }, [position])
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current || !position) return
+      movedRef.current = true
+      const nextX = Math.max(
+        EDGE_PADDING,
+        Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - BUTTON_SIZE - EDGE_PADDING)
+      )
+      const nextY = Math.max(
+        EDGE_PADDING,
+        Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - BUTTON_SIZE - EDGE_PADDING)
+      )
+      setPosition({ x: nextX, y: nextY })
+    }
+
+    const handlePointerUp = () => {
+      isDraggingRef.current = false
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [position])
 
   const handleClose = () => {
     setIsOpen(false)
@@ -94,14 +138,34 @@ export default function BugReportButton() {
     <div
       style={{
         position: 'fixed',
-        bottom: theme.spacing.sm,
-        left: theme.spacing.md,
+        ...(position
+          ? { left: position.x, top: position.y }
+          : { bottom: theme.spacing.sm, left: theme.spacing.md }),
         zIndex: 999,
+        cursor: isDraggingRef.current ? 'grabbing' : 'grab',
+        touchAction: 'none'
+      }}
+      onPointerDown={(e) => {
+        if (!position) return
+        e.preventDefault()
+        isDraggingRef.current = true
+        movedRef.current = false
+        dragOffsetRef.current = {
+          x: e.clientX - position.x,
+          y: e.clientY - position.y
+        }
+        e.currentTarget.setPointerCapture?.(e.pointerId)
       }}
     >
       <button
           id="bug-report-button"
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            if (movedRef.current) {
+              movedRef.current = false
+              return
+            }
+            setIsOpen(true)
+          }}
           aria-label="Report a bug"
           style={{
               background: theme.colors.background.tertiary,            

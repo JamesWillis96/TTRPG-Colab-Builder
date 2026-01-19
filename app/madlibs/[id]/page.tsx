@@ -4,11 +4,10 @@ import { useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useTheme } from '../../../contexts/ThemeContext'
-import { MadLibProvider, useMadLib } from '../../../contexts/MadLibContext'
+import { MadLibProvider } from '../../../contexts/MadLibContext'
 import { madlibTemplatesMap } from '../../../lib/madlibTemplates'
 import MadLibForm from '../../../components/MadLib/MadLibForm'
 import MadLibOutput from '../../../components/MadLib/MadLibOutput'
-import MadLibDrafts from '../../../components/MadLib/MadLibDrafts'
 
 export default function MadLibDetailPage() {
   const { user, loading: authLoading } = useAuth()
@@ -33,60 +32,79 @@ export default function MadLibDetailPage() {
     )
   }
 
-  function DraftToolbar() {
-    const { theme } = useTheme()
-    const { saveDraft, loadLatestDraft } = useMadLib()
-    return (
-      <div style={{ display: 'flex', gap: theme.spacing.sm }}>
-        <button
-          type="button"
-          onClick={loadLatestDraft}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius,
-            border: `1px solid ${theme.colors.border.primary}`,
-            background: theme.colors.background.main,
-            color: theme.colors.text.primary,
-          }}
-        >
-          Load Draft
-        </button>
-        <button
-          type="button"
-          onClick={saveDraft}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius,
-            border: `1px solid ${theme.colors.border.primary}`,
-            background: theme.colors.primary,
-            color: '#fff',
-          }}
-        >
-          Save Draft
-        </button>
-      </div>
-    )
-  }
-
   return (
     <MadLibProvider initialTemplateId={template.id}>
-      <main style={{ ...styles.container, display: 'flex', flexDirection: 'column', gap: theme.spacing.lg }}>
-        <div>
-          <h1 style={{ margin: 0, color: theme.colors.text.primary }}>{template.title}</h1>
-          <div style={{ color: theme.colors.text.secondary }}>{template.category} • {template.difficulty} • stakes: {template.stakes}</div>
-          <p style={{ color: theme.colors.text.secondary, marginTop: theme.spacing.sm }}>{template.description}</p>
-          <DraftToolbar />
+      <main style={{ ...styles.container, maxWidth: '1200px' }}>
+        
+        {/* Hero Header */}
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})`,
+            padding: theme.spacing.xl,
+            borderRadius: theme.borderRadius,
+            marginBottom: theme.spacing.lg,
+            color: '#fff',
+            boxShadow: theme.shadow
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '2.5rem', marginBottom: theme.spacing.xs, color: '#fff' }}>
+                {template.title}
+              </h1>
+              <p style={{ margin: 0, opacity: 0.9, fontSize: '1.1rem', maxWidth: '800px', lineHeight: 1.5 }}>
+                {template.description}
+              </p>
+            </div>
+            <button 
+              onClick={() => router.push('/madlibs')}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: '#fff',
+                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                borderRadius: theme.borderRadius,
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                backdropFilter: 'blur(4px)'
+              }}
+            >
+              ← Back to Library
+            </button>
+          </div>
+          
+          <div style={{ 
+            marginTop: theme.spacing.md, 
+            display: 'flex', 
+            gap: theme.spacing.md,
+            fontSize: '0.9rem',
+            opacity: 0.95,
+            flexWrap: 'wrap'
+          }}>
+            <span style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 12px', borderRadius: 20 }}>📂 {template.category}</span>
+            <span style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 12px', borderRadius: 20 }}>⚡ {template.difficulty}</span>
+            <span style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 12px', borderRadius: 20 }}>🎯 {template.stakes} Stakes</span>
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: theme.spacing.lg }}>
-          <div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1.2fr', gap: theme.spacing.xl, alignItems: 'start' }}>
+          {/* Left: Input Form */}
+          <div style={{ 
+            background: theme.colors.background.secondary,
+            padding: theme.spacing.lg,
+            borderRadius: theme.borderRadius,
+            border: `1px solid ${theme.colors.border.primary}`,
+            boxShadow: theme.shadow
+          }}>
+            <h2 style={{ marginTop: 0, color: theme.colors.text.primary, borderBottom: `1px solid ${theme.colors.border.primary}`, paddingBottom: theme.spacing.sm, fontSize: '1.25rem' }}>
+              Fill In The Blanks
+            </h2>
             <MadLibForm template={template} />
           </div>
-          <div>
-            <MadLibOutput template={template} />
-            <div style={{ marginTop: theme.spacing.lg }}>
-              <MadLibDrafts />
-            </div>
+          
+          {/* Right: Output */}
+          <div style={{ position: 'sticky', top: theme.spacing.md }}>
+             <MadLibOutput template={template} />
           </div>
         </div>
       </main>

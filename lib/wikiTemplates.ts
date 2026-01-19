@@ -157,74 +157,98 @@ export const wikiTemplates: Record<string, string> = {
 [Add any other context, theories, or implications.]
 `,
   item: `# [Item Name]
-**Type:** [Weapon, Armor, Potion, Artifact, etc.]  
-**Rarity:** [Common, Uncommon, Rare, Legendary, etc.]  
-**Value:** [Gold piece equivalent or other value]
+**Type:** [Weapon/Armor/Artifact/Consumable/Other]  
+**Rarity:** [Common/Uncommon/Rare/Legendary]  
+**Attunement/Use:** [Requirements or cost]  
+**Origin:** [Where did it come from?]
 ----
-## What is this item and what does it look like?
+## Appearance
 
-[Description]
+[Describe materials, craftsmanship, and distinctive features.]
 
-## What powers, abilities, or properties does it have?
+## Powers & Properties
 
-[Description]
+- **Primary Effect:** [What it does]
+- **Secondary Effect:** [Optional]
+- **Limits:** [Charges, cooldowns, constraints]
 
-## What is its origin or history?
+## History & Makers
 
-[Description]
+[Who created it and why.]
 
-## Who can use it, and are there any requirements or restrictions?
+## Ownership & Provenance
 
-[Description]
+- **Previous Owner:** [Name/role]
+- **How it was lost:** [Event]
 
-## What is a story or rumor associated with this item?
+## Rumors & Lore
 
-[Story/Rumor]
+- [Rumor 1]
+- [Rumor 2]
 
-## What is a drawback, risk, or cost of using it?
+## Risks & Drawbacks
 
-[Description]
+[Curses, consequences, or trade-offs.]
 
-## Additional Notes
+## Adventure Hooks
 
-[Add any other details, plot hooks, or secrets.]
+- [Hook 1]
+- [Hook 2]
+- [Hook 3]
 `,
   faction: `# [Faction Name]
 **Leader:** [Name and title]  
-**Base of Operations:** [Location]  
+**Symbols/Colors:** [Iconography, colors, banners]  
+**Base of Operations:** [HQ or primary region]  
 **Primary Goal:** [Goal or ideology]
 ----
-## What is the purpose or ideology of this group?
+## What is the faction's public face?
 
-[Description]
+[How it presents itself to the world.]
 
-## Who leads it, and how is it organized?
+## What is it really about?
 
-[Description]
+[True agenda or hidden purpose.]
 
-## What is the group's history or origin?
+## Leadership & Structure
 
-[Description]
+- **Inner Circle:** [Key decision-makers]
+- **Ranks:** [Titles or tiers]
+- **Recruitment:** [How members are inducted]
 
-## Who are its allies and enemies?
+## Assets & Influence
 
-[Description]
+- **Resources:** [Wealth, supplies, magic, information]
+- **Territory:** [Where it holds power]
+- **Leverage:** [Secrets, favors, blackmail]
 
-## What resources, power, or influence does it have?
+## Allies & Rivals
 
-[Description]
+- **Allies:** [Friendly groups]
+- **Rivals:** [Opposing factions]
+- **Wildcards:** [Unpredictable relationships]
 
-## What are its current goals or activities?
+## Current Operations
 
-[Description]
+- **Project 1:** [Goal + stakes]
+- **Project 2:** [Goal + stakes]
+- **Project 3:** [Goal + stakes]
 
-## What is a secret or internal conflict within the faction?
+## Secrets & Fault Lines
 
-[Secret/Conflict]
+- **Secret:** [Hidden truth]
+- **Conflict:** [Internal schism or pressure point]
 
-## Additional Notes
+## Notable Members
 
-[Add any other relevant information, rumors, or story hooks.]
+- **Name:** [Role/trait]
+- **Name:** [Role/trait]
+
+## Story Hooks
+
+- [Hook 1]
+- [Hook 2]
+- [Hook 3]
 `
 }
 

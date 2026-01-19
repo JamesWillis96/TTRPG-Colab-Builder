@@ -72,6 +72,7 @@ export default function SessionsPage() {
         .select('*')
         .is('deleted_at', null)
         .order('date_time', { ascending: true })
+
       if (sessionsErr) throw sessionsErr
       
       const now = new Date()
@@ -135,7 +136,9 @@ export default function SessionsPage() {
   }, [])
 
   useEffect(() => {
-    if (user) loadData()
+    if (user) {
+      loadData()
+    }
   }, [user, loadData])
 
   useEffect(() => {
@@ -445,8 +448,9 @@ export default function SessionsPage() {
                                   style={{
                                     width: '100%',
                                     height: '100%',
-                                    objectFit: 'cover',
-                                    transform: `scale(${gmProfile.image_zoom || 1}) translate(${(gmProfile.image_position_x || 0) / 5}px, ${(gmProfile.image_position_y || 0) / 5}px)`
+                                    objectFit: 'contain',
+                                    transformOrigin: 'center',
+                                    transform: `translate(${(gmProfile.image_position_x || 0) * (24 / 200)}px, ${(gmProfile.image_position_y || 0) * (24 / 200)}px) scale(${gmProfile.image_zoom || 1})`
                                   }}
                                 />
                               </div>

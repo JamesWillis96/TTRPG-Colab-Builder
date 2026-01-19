@@ -15,15 +15,21 @@ export default function MadLibOutput({ template }: { template: MadLibTemplate })
   const [saving, setSaving] = useState(false)
   const [wikiCategory, setWikiCategory] = useState<string>('Lore')
   const [markdownTheme, setMarkdownTheme] = useState<'air' | 'modest' | 'retro' | 'splendor' | 'github'>('github')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const output = useMemo(() => renderOutput(), [renderOutput])
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    window.setTimeout(() => setToast(null), 2200)
+  }
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(output)
-      // Silently succeed; future: toast
+      showToast('Copied to clipboard')
     } catch (_) {
-      // ignore
+      showToast('Copy failed', 'error')
     }
   }
 
@@ -67,82 +73,42 @@ export default function MadLibOutput({ template }: { template: MadLibTemplate })
         .select()
         .single()
       if (error) throw error
-      // Optional: navigate to wiki page or signal success
+      showToast('Saved to Wiki')
     } catch (_) {
-      // silent fail for now
+      showToast('Save failed', 'error')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ margin: 0, color: theme.colors.text.primary }}>Preview</h2>
-        <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ color: theme.colors.text.secondary }}>{filledCount}/{totalCount}</span>
-          <select
-            value={wikiCategory}
-            onChange={(e) => setWikiCategory(e.target.value)}
-            style={{
-              padding: theme.spacing.xs,
-              borderRadius: theme.borderRadius,
-              border: `1px solid ${theme.colors.border.primary}`,
-              background: theme.colors.background.main,
-              color: theme.colors.text.primary,
-              minWidth: 160,
-            }}
-          >
-            {Array.from(WIKI_CATEGORIES).map(c => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            value={markdownTheme}
-            onChange={(e) => setMarkdownTheme(e.target.value as any)}
-            style={{
-              padding: theme.spacing.xs,
-              borderRadius: theme.borderRadius,
-              border: `1px solid ${theme.colors.border.primary}`,
-              background: theme.colors.background.main,
-              color: theme.colors.text.primary,
-              minWidth: 140,
-            }}
-          >
-            {['github','air','modest','retro','splendor'].map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={handleCopy}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius,
-              border: `1px solid ${theme.colors.border.primary}`,
-              background: theme.colors.background.main,
-              color: theme.colors.text.primary,
-            }}
-          >
-            Copy
-          </button>
-          <button
-            type="button"
-            disabled={!user || saving}
-            onClick={handleSaveToWiki}
-            style={{
-              padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-              borderRadius: theme.borderRadius,
-              border: `1px solid ${theme.colors.border.primary}`,
-              background: theme.colors.primary,
-              color: '#fff',
-              opacity: !user || saving ? 0.7 : 1,
-            }}
-          >
-            Save to Wiki
-          </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md, position: 'relative' }}>
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: theme.spacing.lg,
+            right: theme.spacing.lg,
+            background: toast.type === 'success' ? theme.colors.background.success : theme.colors.background.error,
+            color: toast.type === 'success' ? theme.colors.text.primary : theme.colors.danger,
+            border: `1px solid ${toast.type === 'success' ? theme.colors.success : theme.colors.danger}`,
+            padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+            borderRadius: theme.borderRadius,
+            boxShadow: theme.shadow,
+            fontSize: '0.9rem',
+            zIndex: 9999,
+          }}
+        >
+          {toast.message}
         </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `2px solid ${theme.colors.border.primary}`, paddingBottom: theme.spacing.xs }}>
+        <h2 style={{ margin: 0, color: theme.colors.text.primary, fontSize: '1.4rem' }}>Story Output</h2>
+        <span style={{ color: theme.colors.text.secondary, fontSize: '0.9rem', fontWeight: 600 }}>
+             {filledCount}/{totalCount} Blanks Filled
+        </span>
       </div>
+      
       <div
         className="markdown-content"
         style={{
@@ -150,11 +116,109 @@ export default function MadLibOutput({ template }: { template: MadLibTemplate })
           borderRadius: theme.borderRadius,
           background: theme.colors.background.secondary,
           color: theme.colors.text.primary,
-          padding: theme.spacing.md,
+          padding: theme.spacing.lg,
           whiteSpace: 'pre-wrap',
+          minHeight: '300px',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
         }}
       >
-        {output}\n\n---\n\nGenerated from Mad Lib template: {template.title}
+        {output}
+        <div style={{ marginTop: theme.spacing.xl, borderTop: `1px dashed ${theme.colors.border.primary}`, paddingTop: theme.spacing.sm, fontSize: '0.85rem', color: theme.colors.text.secondary }}>
+            Generated from Mad Lib template: {template.title}
+        </div>
+      </div>
+
+       {/* Footer Controls */}
+       <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: theme.spacing.md,
+        padding: theme.spacing.md,
+        background: theme.colors.background.tertiary,
+        borderRadius: theme.borderRadius,
+        border: `1px solid ${theme.colors.border.primary}`
+      }}>
+        
+        {/* Style Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+             <label style={{ fontSize: '0.9rem', color: theme.colors.text.secondary, fontWeight: 600 }}>Theme:</label>
+             <select
+                value={markdownTheme}
+                onChange={(e) => setMarkdownTheme(e.target.value as any)}
+                style={{
+                  padding: theme.spacing.xs,
+                  borderRadius: theme.borderRadius,
+                  border: `1px solid ${theme.colors.border.primary}`,
+                  background: theme.colors.background.main,
+                  color: theme.colors.text.primary,
+                  minWidth: 120,
+                  fontSize: '0.9rem'
+                }}
+              >
+                {['github','air','modest','retro','splendor'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs, marginRight: theme.spacing.sm }}>
+                 <label style={{ fontSize: '0.9rem', color: theme.colors.text.secondary }}>Category:</label>
+                 <select
+                    value={wikiCategory}
+                    onChange={(e) => setWikiCategory(e.target.value)}
+                    style={{
+                      padding: theme.spacing.xs,
+                      borderRadius: theme.borderRadius,
+                      border: `1px solid ${theme.colors.border.primary}`,
+                      background: theme.colors.background.main,
+                      color: theme.colors.text.primary,
+                       minWidth: 140,
+                       fontSize: '0.9rem'
+                    }}
+                  >
+                    {Array.from(WIKI_CATEGORIES).map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+            </div>
+
+            <button
+                type="button"
+                onClick={handleCopy}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  borderRadius: theme.borderRadius,
+                  border: `1px solid ${theme.colors.border.secondary}`,
+                  background: theme.colors.background.main,
+                  color: theme.colors.text.primary,
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+            >
+                📋 Copy
+            </button>
+            <button
+                type="button"
+                disabled={!user || saving}
+                onClick={handleSaveToWiki}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  borderRadius: theme.borderRadius,
+                  border: 'none',
+                  background: !user || saving ? theme.colors.background.tertiary : theme.colors.primary,
+                  color: !user || saving ? theme.colors.text.muted : '#fff', // Better disabled state
+                  cursor: !user || saving ? 'not-allowed' : 'pointer',
+                  fontWeight: 600,
+                  boxShadow: !user || saving ? 'none' : theme.shadow
+                }}
+            >
+                {saving ? 'Saving...' : '💾 Save to Wiki'}
+            </button>
+        </div>
       </div>
     </div>
   )

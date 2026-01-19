@@ -577,7 +577,9 @@ export function WikiEditorModal() {
 
       {/* Floating Markdown Guide Popup */}
       {showMarkdownGuide && (
-        <div style={{
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
           position: 'fixed',
           right: '2%',
           top: '50%',
@@ -588,7 +590,7 @@ export function WikiEditorModal() {
           border: `2px solid ${theme.colors.primary}`,
           borderRadius: theme.borderRadius,
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-          zIndex: 999,
+          zIndex: 1100,
           overflowY: 'auto',
           padding: theme.spacing.lg,
         }}>

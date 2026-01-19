@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useWiki } from '../../contexts/WikiContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -20,6 +21,16 @@ type AuthorProfile = {
   image_position_x?: number
   image_position_y?: number
 }
+
+type MapPoi = {
+  id: string
+  x: number
+  y: number
+  title: string
+}
+
+const AUTHOR_BADGE_SIZE = 24
+const PROFILE_PREVIEW_SIZE = 200
 
 /**
  * WikiContentPane - Right side content display
@@ -52,9 +63,21 @@ export function WikiContentPane() {
   const { theme, isDark } = useTheme()
   const { user, profile } = useAuth()
   const { selectedEntry, openEditModal, deleteEntry, openRevisionsModal } = useWiki()
+  const router = useRouter()
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [mapPoi, setMapPoi] = useState<MapPoi | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Reset delete confirmation state when entry changes
   useEffect(() => {
@@ -90,6 +113,37 @@ export function WikiContentPane() {
 
     fetchAuthorProfile()
   }, [selectedEntry?.author_id])
+
+  // Fetch map POI for any entry with a map point
+  useEffect(() => {
+    if (!selectedEntry) {
+      setMapPoi(null)
+      return
+    }
+
+    const fetchMapPoi = async () => {
+      const { data, error } = await supabase
+        .from('map_pois')
+        .select('id,x,y,title')
+        .is('deleted_at', null)
+        .eq('wiki_page_id', selectedEntry.id)
+        .limit(1)
+        .maybeSingle()
+
+      if (!error && data) {
+        setMapPoi({
+          id: data.id,
+          x: data.x,
+          y: data.y,
+          title: data.title
+        })
+      } else {
+        setMapPoi(null)
+      }
+    }
+
+    fetchMapPoi()
+  }, [selectedEntry])
 
   // Pre-process content to convert :::spoiler[...] blocks to HTML
   const processedContent = React.useMemo(() => {
@@ -149,12 +203,12 @@ export function WikiContentPane() {
         backgroundColor: theme.colors.background.secondary,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-          <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexDirection: isMobile ? 'column' : 'row', gap: theme.spacing.md }}>
+          <div style={{ flex: 1, width: isMobile ? '100%' : 'auto' }}>
             <h1
               style={{
                 margin: `0 0 ${theme.spacing.sm} 0`,
-                fontSize: '28px',
+                fontSize: isMobile ? '22px' : '28px',
                 fontWeight: 700,
                 color: theme.colors.text.primary,
               }}
@@ -164,7 +218,7 @@ export function WikiContentPane() {
             <div
               style={{
                 display: 'flex',
-                gap: theme.spacing.lg,
+                gap: theme.spacing.md,
                 fontSize: '14px',
                 color: theme.colors.text.secondary,
                 alignItems: 'center',
@@ -201,8 +255,9 @@ export function WikiContentPane() {
                       style={{
                         width: '100%',
                         height: '100%',
-                        objectFit: 'cover',
-                        transform: `scale(${authorProfile.image_zoom || 1}) translate(${(authorProfile.image_position_x || 0) / 5}px, ${(authorProfile.image_position_y || 0) / 5}px)`
+                        objectFit: 'contain',
+                        transformOrigin: 'center',
+                        transform: `translate(${(authorProfile.image_position_x || 0) * (AUTHOR_BADGE_SIZE / PROFILE_PREVIEW_SIZE)}px, ${(authorProfile.image_position_y || 0) * (AUTHOR_BADGE_SIZE / PROFILE_PREVIEW_SIZE)}px) scale(${authorProfile.image_zoom || 1})`
                       }}
                     />
                   </div>
@@ -227,6 +282,26 @@ export function WikiContentPane() {
               </div>
               
               <span>Category: {selectedEntry.category}</span>
+                      {mapPoi && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/map?poi=${mapPoi.id}`)}
+                  style={{
+                    padding: '4px 10px',
+                    backgroundColor: theme.colors.background.main,
+                    color: theme.colors.text.primary,
+                    border: `1px solid ${theme.colors.border.primary}`,
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    fontSize: '0.8em',
+                    transition: 'background-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.background.secondary)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = theme.colors.background.main)}
+                >
+                  🗺️ Show on Map
+                </button>
+              )}
               <span>
                 Updated: {new Date(selectedEntry.updated_at).toLocaleDateString()}
               </span>
@@ -235,7 +310,7 @@ export function WikiContentPane() {
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: theme.spacing.md }}>
+          <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
             <button
               onClick={() => openRevisionsModal()}
               style={{
@@ -245,7 +320,7 @@ export function WikiContentPane() {
                 border: `1px solid ${theme.colors.border.primary}`,
                 borderRadius: theme.borderRadius,
                 cursor: 'pointer',
-                fontSize: '14px',
+                fontSize: isMobile ? '13px' : '14px',
                 transition: 'background-color 0.2s',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.colors.background.secondary)}
@@ -306,6 +381,8 @@ export function WikiContentPane() {
           paddingBottom: '80px',
           display: 'flex',
           gap: theme.spacing.xl,
+          flexWrap: 'wrap',
+          justifyContent: 'center',
         }}
       >
         <style>{getMarkdownThemeCSS(selectedEntry.markdown_theme || 'github')}</style>
@@ -318,7 +395,9 @@ export function WikiContentPane() {
             fontSize: '15px',
             lineHeight: '1.6',
             flex: selectedEntry.featured_image ? '1 1 60%' : '1 1 100%',
-            maxWidth: selectedEntry.featured_image ? '60%' : '900px',
+            maxWidth: selectedEntry.featured_image ? '60%' : '760px',
+            width: '100%',
+            margin: '0 auto',
             minWidth: 0,
           }}
         >
