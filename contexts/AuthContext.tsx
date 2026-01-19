@@ -37,9 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check active sessions
-    supabase.auth. getSession().then(({ data: { session } }) => {
-      setUser(session?.user ??  null)
-      if (session?. user) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
         loadProfile(session.user.id)
       } else {
         setLoading(false)
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        loadProfile(session. user.id)
+        loadProfile(session.user.id)
       } else {
         setProfile(null)
         setLoading(false)
