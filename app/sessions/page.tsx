@@ -18,7 +18,7 @@ type SessionRow = {
   deleted_by?: string | null
 }
 
-type Player = { session_id: string; player_id: string }
+type Player = { session_id: string; player_id?: string; guest_profile_id?: string }
 
 type GMProfile = {
   id: string
@@ -34,6 +34,17 @@ export default function SessionsPage() {
   const { user, profile, loading: authLoading } = useAuth()
   const { theme, styles } = useTheme()
 
+  // Guest mode detection (must run before redirect logic)
+  // Use undefined as initial state to ensure we know when check is complete
+  const [isGuest, setIsGuest] = useState<boolean | undefined>(undefined)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const search = window.location.search;
+      setIsGuest(/([?&])guest([&=]|$)/.test(search));
+    }
+  }, [])
+  
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [playersBySession, setPlayersBySession] = useState<Record<string, Player[]>>({})
   const [gmNames, setGmNames] = useState<Record<string, string>>({})
@@ -52,16 +63,22 @@ export default function SessionsPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [detailsSession, setDetailsSession] = useState<SessionRow | null>(null)
+  const [showGuestJoinModal, setShowGuestJoinModal] = useState(false)
+  const [guestTargetSessionId, setGuestTargetSessionId] = useState<string | null>(null)
+  const [guestProfileId, setGuestProfileId] = useState<string | null>(null)
 
   useEffect(() => {
     setIsAdmin(profile?.role === 'admin')
   }, [profile])
 
+
   useEffect(() => {
-    if (!authLoading && !user) {
+    // Only run redirect after isGuest is set (not undefined)
+    if (isGuest === undefined) return;
+    if (isGuest === false && !authLoading && !user) {
       router.push('/login')
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router, isGuest])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -112,7 +129,7 @@ export default function SessionsPage() {
 
       const { data: playersRes, error: playersErr } = await supabase
         .from('session_players')
-        .select('session_id,player_id')
+        .select('session_id,player_id,guest_profile_id')
         .in('session_id', ids)
 
       if (playersErr) throw playersErr
@@ -121,7 +138,10 @@ export default function SessionsPage() {
       ;(playersRes || []).forEach((p: any) => {
         const sid = String(p.session_id)
         const arr = (grouped[sid] ||= [])
-        if (!arr.some(a => a.player_id === p.player_id)) arr.push({ session_id: sid, player_id: p.player_id })
+        const key = p.player_id ?? p.guest_profile_id
+        if (!arr.some(a => (a.player_id ?? a.guest_profile_id) === key)) {
+          arr.push({ session_id: sid, player_id: p.player_id ?? undefined, guest_profile_id: p.guest_profile_id ?? undefined })
+        }
       })
       ids.forEach(id => { grouped[id] ||= [] })
       setPlayersBySession(grouped)
@@ -136,10 +156,19 @@ export default function SessionsPage() {
   }, [])
 
   useEffect(() => {
-    if (user) {
+    if (user || isGuest) {
       loadData()
     }
-  }, [user, loadData])
+  }, [user, isGuest, loadData])
+
+  useEffect(() => {
+    try {
+      const id = typeof window !== 'undefined' ? window.localStorage.getItem('guest_profile_id') : null
+      if (id) setGuestProfileId(id)
+    } catch (e) {
+      // ignore
+    }
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -168,18 +197,35 @@ export default function SessionsPage() {
     }
   }, [user, loadData])
 
-  const joinSession = async (sessionId: string) => {
-    if (!user) return
+  const joinSession = async (sessionId: string, playerId?: string) => {
+    // allow joining as authenticated user (use user.id) or as a guest (provide playerId which is guest_profile_id)
+    if (!user && !playerId) return
     setJoining(prev => ({ ...prev, [sessionId]: true }))
     try {
-      const { error } = await supabase
-        .from('session_players')
-        .insert({ session_id: sessionId, player_id: user.id })
-      if (error) {
-        if (error.code === '23505' || (error.message || '').toLowerCase().includes('duplicate')) {
-          alert('You are already signed up for this session.')
-        } else {
-          throw error
+      if (playerId) {
+        // guest join: insert guest_profile_id
+        const { error } = await supabase
+          .from('session_players')
+          .insert({ session_id: sessionId, guest_profile_id: playerId })
+        if (error) {
+          if (error.code === '23505' || (error.message || '').toLowerCase().includes('duplicate')) {
+            alert('You are already signed up for this session.')
+          } else {
+            throw error
+          }
+        }
+      } else {
+        // authenticated user
+        const pid = user?.id
+        const { error } = await supabase
+          .from('session_players')
+          .insert({ session_id: sessionId, player_id: pid })
+        if (error) {
+          if (error.code === '23505' || (error.message || '').toLowerCase().includes('duplicate')) {
+            alert('You are already signed up for this session.')
+          } else {
+            throw error
+          }
         }
       }
       await loadData()
@@ -191,22 +237,27 @@ export default function SessionsPage() {
     }
   }
 
-  const leaveSession = async (sessionId: string) => {
-    if (!user) return
-    setJoining(prev => ({ ...prev, [sessionId]: true }))
+  const leaveSession = async (sessionId: string, playerId?: string) => {
+    // If playerId provided assume guest (guest_profile_id), otherwise use authenticated user id
     try {
-      const { error } = await supabase
-        .from('session_players')
-        .delete()
-        .eq('session_id', sessionId)
-        .eq('player_id', user.id)
-      if (error) throw error
+      if (playerId) {
+        const { error } = await supabase
+          .from('session_players')
+          .delete()
+          .match({ session_id: sessionId, guest_profile_id: playerId })
+        if (error) throw error
+      } else {
+        if (!user) return
+        const { error } = await supabase
+          .from('session_players')
+          .delete()
+          .match({ session_id: sessionId, player_id: user.id })
+        if (error) throw error
+      }
       await loadData()
     } catch (err: any) {
       console.error('leaveSession error', err)
       alert('Failed to leave session: ' + (err?.message || String(err)))
-    } finally {
-      setJoining(prev => ({ ...prev, [sessionId]: false }))
     }
   }
 
@@ -296,10 +347,32 @@ export default function SessionsPage() {
   }
 
   const getPlayerCount = (id: string) => (playersBySession[id]?.length) ?? 0
-  const hasJoined = (id: string) => (playersBySession[id] || []).some(p => p.player_id === user?.id)
+  const hasJoined = (id: string) => {
+    const pid = user?.id ?? guestProfileId
+    if (!pid) return false
+    return (playersBySession[id] || []).some(p => (p.player_id === pid) || (p.guest_profile_id === pid))
+  }
   const isFull = (id: string, maxPlayers: number | null | undefined) => {
     if (!maxPlayers) return false
     return getPlayerCount(id) >= maxPlayers
+  }
+
+  const handleJoinClick = (sessionId: string) => {
+    if (isGuest) {
+      // if guest already has a guest profile and has joined, allow leaving directly
+      if (hasJoined(sessionId) && guestProfileId) {
+        leaveSession(sessionId, guestProfileId)
+        return
+      }
+      setGuestTargetSessionId(sessionId)
+      setShowGuestJoinModal(true)
+      return
+    }
+    if (hasJoined(sessionId)) {
+      leaveSession(sessionId)
+    } else {
+      joinSession(sessionId)
+    }
   }
 
   const getSessionsForDate = (dateStr: string) => {
@@ -313,8 +386,7 @@ export default function SessionsPage() {
 
   const displayedSessions = selectedDate ? getSessionsForDate(selectedDate) : (showAllSessions ? sessions : sessions.slice(0, 6))
   if (loading || authLoading) return <div style={{ padding: 24 }}>Loading...</div>
-  if (!user) return null
-
+  if (!user && !isGuest) return null
 
   return (
     <main style={{
@@ -328,15 +400,24 @@ export default function SessionsPage() {
       borderLeft: `8px solid ${theme.colors.primary}`,
       borderRight: `8px solid ${theme.colors.primary}`
     }}>
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
-        background: 'radial-gradient(ellipse at center, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.7) 50%, rgba(15, 23, 42, 0.5) 100%)',
-        pointerEvents: 'none'
-      }} />
+      {/* Guest mode banner */}
+      {isGuest && (
+        <div style={{
+          width: '100%',
+          background: theme.colors.background.main,
+          color: theme.colors.text.primary,
+          padding: '12px 0',
+          textAlign: 'center',
+          fontWeight: 600,
+          fontSize: '1.1em',
+          letterSpacing: 0.5,
+          zIndex: 100,
+          position: 'sticky',
+          top: 0,
+        }}>
+          Guest Mode: <a href="/login" style={{ color: theme.colors.primary, textDecoration: 'underline', marginLeft: 8 }}>Log in for more features</a>
+        </div>
+      )}
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
@@ -512,7 +593,7 @@ export default function SessionsPage() {
                           Details
                         </button>
                         <button
-                          onClick={() => hasJoined(s.id) ? leaveSession(s.id) : joinSession(s.id)}
+                          onClick={() => handleJoinClick(s.id)}
                           disabled={joining[s.id] || (!hasJoined(s.id) && isFull(s.id, s.max_players))}
                           style={{ ...styles.button.primary, padding: showAllButtons ? '6px 10px' : undefined, fontSize: showAllButtons ? '0.85em' : undefined, whiteSpace: 'nowrap' }}
                         >
@@ -562,6 +643,55 @@ export default function SessionsPage() {
           </>
         )}
       </div>
+
+      {showGuestJoinModal && guestTargetSessionId && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 65
+        }}>
+          <div style={{ background: theme.colors.background.main, padding: 20, borderRadius: 8, width: 520 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={styles.heading2}>Join as Guest</h2>
+              <button onClick={() => { setShowGuestJoinModal(false); setGuestTargetSessionId(null) }} style={styles.button.primary}>Close</button>
+            </div>
+            <div style={{ marginBottom: 8, color: theme.colors.text.secondary }}>
+              Enter a display name to join this session as a guest.
+            </div>
+            <GuestJoinForm
+              sessionId={guestTargetSessionId}
+              onCancel={() => { setShowGuestJoinModal(false); setGuestTargetSessionId(null) }}
+              onJoin={async (name: string) => {
+                // Create or increment guest profile via RPC and store its id locally, then join with that id
+                try {
+                  const { data: gidData, error: gidErr } = await supabase.rpc('create_or_increment_guest', { _username: name })
+                  if (gidErr) throw gidErr
+                  const gid = Array.isArray(gidData) ? gidData[0] : (gidData as any)
+                  try {
+                    if (typeof window !== 'undefined') window.localStorage.setItem('guest_profile_id', String(gid))
+                  } catch (e) {}
+                  setGuestProfileId(String(gid))
+                  await joinSession(guestTargetSessionId as string, String(gid))
+                } catch (err: any) {
+                  console.error('Guest join flow failed', err)
+                  alert('Failed to join as guest: ' + (err?.message || String(err)))
+                } finally {
+                  setShowGuestJoinModal(false)
+                  setGuestTargetSessionId(null)
+                }
+              }}
+              theme={theme}
+            />
+          </div>
+        </div>
+      )}
 
       {showCreateModal && (
         <div style={{
@@ -1015,17 +1145,30 @@ function SessionDetailsModal({
   useEffect(() => {
     const fetchPlayerNames = async () => {
       if (players.length === 0) return
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id,username')
-        .in('id', players.map(p => p.player_id))
-      if (error) {
-        console.error('Error fetching player names:', error)
-        return
+      try {
+        const realIds = players.map(p => p.player_id).filter(Boolean)
+        const guestIds = players.map(p => p.guest_profile_id).filter(Boolean)
+        const names: Record<string, string> = {}
+        if (realIds.length) {
+          const { data: realData, error: realErr } = await supabase
+            .from('profiles')
+            .select('id,username')
+            .in('id', realIds)
+          if (realErr) throw realErr
+          ;(realData || []).forEach((p: any) => { names[p.id] = p.username })
+        }
+        if (guestIds.length) {
+          const { data: guestData, error: guestErr } = await supabase
+            .from('guest_profiles')
+            .select('id,username')
+            .in('id', guestIds)
+          if (guestErr) throw guestErr
+          ;(guestData || []).forEach((p: any) => { names[p.id] = p.username })
+        }
+        setPlayerNames(names)
+      } catch (err) {
+        console.error('Error fetching player names:', err)
       }
-      const names: Record<string, string> = {}
-      ;(data || []).forEach(p => { names[p.id] = p.username })
-      setPlayerNames(names)
     }
     fetchPlayerNames()
   }, [players])
@@ -1090,19 +1233,22 @@ function SessionDetailsModal({
               <div style={{ color: theme.colors.text.tertiary, fontStyle: 'italic' }}>No players yet</div>
             ) : (
               <div style={{ display: 'grid', gap: 6 }}>
-                {players.map(p => (
-                  <div key={p.player_id} style={{ 
-                    padding: 8, 
-                    background: theme.colors.background.secondary, 
-                    borderRadius: 4,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    color: theme.colors.text.primary
-                  }}>
-                    <span>{playerNames[p.player_id] || 'Loading...'}</span>
-                  </div>
-                ))}
+                {players.map(p => {
+                  const key = p.player_id || p.guest_profile_id || ''
+                  return (
+                    <div key={key} style={{ 
+                      padding: 8, 
+                      background: theme.colors.background.secondary, 
+                      borderRadius: 4,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      color: theme.colors.text.primary
+                    }}>
+                      <span>{playerNames[key] || key}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -1113,6 +1259,47 @@ function SessionDetailsModal({
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function GuestJoinForm({ sessionId, onCancel, onJoin, theme }: {
+  sessionId: string | null
+  onCancel: () => void
+  onJoin: (name: string) => Promise<void>
+  theme?: any
+}) {
+  const [name, setName] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async () => {
+    if (!name.trim() || !sessionId) {
+      alert('Please enter a name.')
+      return
+    }
+    setLoading(true)
+    try {
+      await onJoin(name.trim())
+    } catch (err: any) {
+      console.error('Guest join failed', err)
+      alert('Failed to join: ' + (err?.message || String(err)))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <input
+        placeholder="Display name"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        style={{ padding: 8, color: '#000' }}
+      />
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button onClick={onCancel} style={{ padding: '8px 12px' }} disabled={loading}>Cancel</button>
+        <button onClick={submit} style={{ padding: '8px 12px' }} disabled={loading}>{loading ? 'Joining…' : 'Join as Guest'}</button>
       </div>
     </div>
   )

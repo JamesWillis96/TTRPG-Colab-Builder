@@ -29,6 +29,7 @@ type Signup = {
   id: string
   session_id: string
   player_id: string 
+  guest_profile_id?: string
   signed_up_at: string
   profile?: Profile
 }
@@ -61,28 +62,18 @@ export default function SessionDetailPage() {
     }
     setGuestLoading(true)
     try {
-      // 1. Create guest profile if not exists
+      // 1. Create guest_profiles entry if not exists and add to session_players as guest_profile_id
       let guestProfileId = user?.id
       if (!profile) {
-        const { data: newProfile, error: profileErr } = await supabase
-          .from('profiles')
-          .insert([{ id: user?.id, username: guestName, role: 'guest' }])
-          .select()
-          .single()
-        if (profileErr) throw profileErr
-        guestProfileId = newProfile.id
-      } else if (profile.username !== guestName) {
-        // Update username if changed
-        const { error: updateErr } = await supabase
-          .from('profiles')
-          .update({ username: guestName })
-          .eq('id', user?.id)
-        if (updateErr) throw updateErr
+        const { data: gidData, error: gidErr } = await supabase.rpc('create_or_increment_guest', { _username: guestName })
+        if (gidErr) throw gidErr
+        const gid = Array.isArray(gidData) ? gidData[0] : (gidData as any)
+        guestProfileId = String(gid)
       }
       // 2. Add to session_players
       const { error: signupErr } = await supabase
         .from('session_players')
-        .insert([{ session_id: sessionId, player_id: guestProfileId }])
+        .insert([{ session_id: sessionId, guest_profile_id: guestProfileId }])
       if (signupErr) throw signupErr
       setShowGuestModal(false)
       setGuestName('')
@@ -137,22 +128,37 @@ export default function SessionDetailPage() {
         return
       }
 
-      // 3. Load profiles for all signed up players
-      const playerIds = signupsData.map(s => s.player_id)  // Changed from user_id to player_id
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', playerIds)
+      // 3. Load profiles for all signed up players (real and guest)
+      const playerIds = signupsData.map(s => s.player_id).filter(Boolean)
+      const guestIds = signupsData.map(s => s.guest_profile_id).filter(Boolean)
 
-      if (profilesError) throw profilesError
+      let profilesData: any[] = []
+      let guestProfilesData: any[] = []
+      if (playerIds.length) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', playerIds)
+        if (error) throw error
+        profilesData = data || []
+      }
+      if (guestIds.length) {
+        const { data, error } = await supabase
+          .from('guest_profiles')
+          .select('*')
+          .in('id', guestIds)
+        if (error) throw error
+        guestProfilesData = data || []
+      }
 
       // 4. Combine signups with profiles
-      const signupsWithProfiles: Signup[] = signupsData.map(signup => ({
+      const signupsWithProfiles: Signup[] = signupsData.map((signup: any) => ({
         id: signup.id,
         session_id: signup.session_id,
-        player_id: signup.player_id,  // Changed from user_id to player_id
+        player_id: signup.player_id,
+        guest_profile_id: signup.guest_profile_id,
         signed_up_at: signup.created_at,
-        profile: profilesData?.find(p => p.id === signup.player_id)  // Changed from user_id to player_id
+        profile: profilesData?.find(p => p.id === signup.player_id) || guestProfilesData?.find(g => g.id === signup.guest_profile_id)
       }))
 
       setSignups(signupsWithProfiles)
@@ -342,7 +348,7 @@ export default function SessionDetailPage() {
         )}
 
         {/* Guest sign up block */}
-        {isGuest && !signups.some(s => s.player_id === user?.id) && session.status === 'open' && (
+        {isGuest && !signups.some(s => (s.player_id === user?.id) || (s.guest_profile_id === user?.id)) && session.status === 'open' && (
           <div style={{ marginTop: '2rem', textAlign: 'center' }}>
             <button
               style={{
