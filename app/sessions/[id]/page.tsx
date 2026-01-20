@@ -112,7 +112,8 @@ export default function SessionDetailPage() {
       }
 
       setSession(sessionData)
-      setIsGM(user?.id === sessionData.gm_id)
+      // Allow session creator (GM) or admins to manage signups
+      setIsGM(user?.id === sessionData.gm_id || profile?.role === 'admin')
 
       // 2. Load signups
       const { data: signupsData, error: signupsError } = await supabase
@@ -172,6 +173,12 @@ export default function SessionDetailPage() {
 
   const handleRemovePlayer = async (signupId: string) => {
     if (!confirm('Are you sure you want to remove this player?')) return
+
+    // Authorize: only session GM or admins can remove players
+    if (!(user?.id === session?.gm_id || profile?.role === 'admin')) {
+      alert('You are not authorized to remove players from this session.')
+      return
+    }
 
     try {
       const { error } = await supabase

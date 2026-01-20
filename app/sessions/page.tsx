@@ -18,7 +18,7 @@ type SessionRow = {
   deleted_by?: string | null
 }
 
-type Player = { session_id: string; player_id?: string; guest_profile_id?: string }
+type Player = { id?: string; session_id: string; player_id?: string; guest_profile_id?: string }
 
 type GMProfile = {
   id: string
@@ -129,7 +129,7 @@ export default function SessionsPage() {
 
       const { data: playersRes, error: playersErr } = await supabase
         .from('session_players')
-        .select('session_id,player_id,guest_profile_id')
+        .select('id,session_id,player_id,guest_profile_id')
         .in('session_id', ids)
 
       if (playersErr) throw playersErr
@@ -140,7 +140,7 @@ export default function SessionsPage() {
         const arr = (grouped[sid] ||= [])
         const key = p.player_id ?? p.guest_profile_id
         if (!arr.some(a => (a.player_id ?? a.guest_profile_id) === key)) {
-          arr.push({ session_id: sid, player_id: p.player_id ?? undefined, guest_profile_id: p.guest_profile_id ?? undefined })
+          arr.push({ id: p.id, session_id: sid, player_id: p.player_id ?? undefined, guest_profile_id: p.guest_profile_id ?? undefined })
         }
       })
       ids.forEach(id => { grouped[id] ||= [] })
@@ -746,15 +746,26 @@ export default function SessionsPage() {
 
       {showDetailsModal && detailsSession && (
         <SessionDetailsModal
-          session={detailsSession}
-          players={playersBySession[detailsSession.id] || []}
-          gmName={gmNames[detailsSession.gm_id] || 'Loading...'}
-          isAdmin={isAdmin}
-          isGM={user?.id === detailsSession.gm_id}
-          onClose={() => { setShowDetailsModal(false); setDetailsSession(null) }}
-          theme={theme}
-          styles={styles}
-        />
+            session={detailsSession}
+            players={playersBySession[detailsSession.id] || []}
+            gmName={gmNames[detailsSession.gm_id] || 'Loading...'}
+            isAdmin={isAdmin}
+            isGM={user?.id === detailsSession.gm_id}
+            onClose={() => { setShowDetailsModal(false); setDetailsSession(null) }}
+            loadData={loadData}
+            onRemove={(sessionId: string, signupId: string) => {
+              setPlayersBySession(prev => {
+                const copy: Record<string, Player[]> = { ...prev }
+                const arr = (copy[sessionId] || []).filter(p => p.id !== signupId)
+                copy[sessionId] = arr
+                return copy
+              })
+              // force sessions re-render to ensure counts update
+              setSessions(prev => ([...prev]))
+            }}
+            theme={theme}
+            styles={styles}
+          />
       )}
     </main>
   )
@@ -1127,6 +1138,8 @@ function SessionDetailsModal({
   isAdmin,
   isGM,
   onClose,
+  loadData,
+  onRemove,
   theme,
   styles
 }: {
@@ -1136,6 +1149,8 @@ function SessionDetailsModal({
   isAdmin: boolean
   isGM: boolean
   onClose: () => void
+  loadData?: () => Promise<void>
+  onRemove?: (sessionId: string, signupId: string) => void
   theme: any
   styles: any
 }) {
@@ -1172,6 +1187,55 @@ function SessionDetailsModal({
     }
     fetchPlayerNames()
   }, [players])
+
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [removeDebug, setRemoveDebug] = useState<any>(null)
+
+  const handleRemovePlayer = async (p: Player) => {
+    if (!p.id) {
+      alert('Unable to remove player: missing signup id.')
+      return
+    }
+    if (!confirm('Are you sure you want to remove this player from the session?')) return
+
+    // Authorization: only GM or admins can remove players
+    if (!(isAdmin || isGM)) {
+      alert('You are not authorized to remove players from this session.')
+      return
+    }
+
+    try {
+      console.debug('attempting to remove signup id', p.id)
+      setRemovingId(String(p.id))
+      const res = await supabase
+        .from('session_players')
+        .delete()
+        .select('*')
+        .eq('id', p.id)
+
+      // Log and store full response for debugging RLS/errors
+      console.debug('remove player response', res)
+      setRemoveDebug(res)
+
+      if (res.error) throw res.error
+
+      // Close modal — parent subscribes to changes and will refresh
+      // Update parent local state immediately if callback provided
+      if (typeof onRemove === 'function') {
+        try { onRemove(session.id, p.id) } catch (e) { console.error('onRemove callback failed', e) }
+      }
+      if (typeof loadData === 'function') {
+        try { await loadData() } catch (e) { console.error('loadData after remove failed', e) }
+      }
+      onClose()
+    } catch (err: any) {
+      console.error('Failed to remove player', err)
+      const msg = err?.message || JSON.stringify(err) || String(err)
+      alert('Failed to remove player: ' + msg)
+    } finally {
+      setRemovingId(null)
+    }
+  }
 
   const copyInviteLink = () => {
     const url = `${window.location.origin}/sessions?id=${session.id}`
@@ -1246,6 +1310,24 @@ function SessionDetailsModal({
                       color: theme.colors.text.primary
                     }}>
                       <span>{playerNames[key] || key}</span>
+                      {(isAdmin || isGM) && (
+                        <button
+                          onClick={() => handleRemovePlayer(p)}
+                          disabled={!!removingId}
+                          style={{
+                            marginLeft: 12,
+                            padding: '4px 8px',
+                            background: 'transparent',
+                            color: theme.colors.danger,
+                            border: `1px solid ${theme.colors.danger}`,
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          {removingId ? 'Removing…' : 'Remove'}
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -1258,6 +1340,12 @@ function SessionDetailsModal({
               {copySuccess ? '✓ Copied!' : 'Copy Invite Link'}
             </button>
           </div>
+          {removeDebug && (
+            <div style={{ marginTop: 8, padding: 8, background: '#111', color: '#fff', fontSize: '0.8rem', borderRadius: 6 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Debug: last remove response</div>
+              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{JSON.stringify(removeDebug, null, 2)}</pre>
+            </div>
+          )}
         </div>
       </div>
     </div>
