@@ -250,6 +250,50 @@ export const wikiTemplates: Record<string, string> = {
 - [Hook 2]
 - [Hook 3]
 `
+  ,
+  // Template for Collosi (large ancient constructs/creatures)
+  collosi: `# [Colossi Name]
+**Type:** [Titan/Construct/Natural/God-forged/etc.]  
+**Scale:** [Height/weight/relative size]  
+**Location:** [Where it dwells or was found]  
+**Known By:** [Cult, nation, explorers]
+----
+## What is the Colossi's origin or purpose?
+
+[Creation myth, maker, or natural origin]
+
+## Physical Description & Scale
+
+[Describe appearance, materials, markings, notable features]
+
+## Powers, Abilities & Effects on the Environment
+
+- **Primary Power:** [E.g., earth-shaping, storm-summoning]
+- **Range/Scale:** [Area affected]
+- **Passive Effects:** [Changes to weather, gravity, magic zones]
+
+## Behavior & Motivations
+
+[Is it hostile, benevolent, dormant, wandering? What wakes it?]
+
+## Weaknesses, Limits & How to Affect It
+
+[Known vulnerabilities, rituals, special weapons, or bargains]
+
+## Relationship to People, Factions, & Sites
+
+[How kingdoms, cults, or explorers interact with it; temples, treaties]
+
+## Adventure Hooks
+
+- [Hook 1: Why the party encounters it]
+- [Hook 2: A faction wants it awakened/slain]
+- [Hook 3: Salvage its remains or harness its power]
+
+## Notes & Rumors
+
+[Ongoing myths, contradictory reports, and named sightings]
+`
 }
 
 export function getWikiTemplate(category: string): string {

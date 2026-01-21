@@ -5,6 +5,7 @@ export const wikiCategories = [
   'lore',
   'item',
   'faction',
+  'collosi',
   'general'
 ] as const
 
