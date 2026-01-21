@@ -18,10 +18,14 @@ export default function BugReportButton() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [showTooltip, setShowTooltip] = useState(false)
+  const [isCtrlHeld, setIsCtrlHeld] = useState(false)
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
   const isDraggingRef = useRef(false)
   const dragOffsetRef = useRef({ x: 0, y: 0 })
   const movedRef = useRef(false)
+  const pointerDownRef = useRef(false)
+  const longPressTimeoutRef = useRef<number | null>(null)
+  const initialPointerRef = useRef({ x: 0, y: 0 })
 
   const BUTTON_SIZE = 50
   const EDGE_PADDING = 8
@@ -62,23 +66,64 @@ export default function BugReportButton() {
     })
   }, [position])
 
+  // Track whether Ctrl (or Meta for macOS) is held so we can require it for dragging
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      setIsCtrlHeld(e.ctrlKey || e.metaKey)
+    }
+    const onKeyUp = (e: KeyboardEvent) => {
+      setIsCtrlHeld(e.ctrlKey || e.metaKey)
+    }
+
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [])
+
+  useEffect(() => {
+    const MOVE_THRESHOLD = 8
+
     const handlePointerMove = (e: PointerEvent) => {
-      if (!isDraggingRef.current || !position) return
-      movedRef.current = true
-      const nextX = Math.max(
-        EDGE_PADDING,
-        Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - BUTTON_SIZE - EDGE_PADDING)
-      )
-      const nextY = Math.max(
-        EDGE_PADDING,
-        Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - BUTTON_SIZE - EDGE_PADDING)
-      )
-      setPosition({ x: nextX, y: nextY })
+      if (!position) return
+
+      // If we're already dragging, update position
+      if (isDraggingRef.current) {
+        movedRef.current = true
+        const nextX = Math.max(
+          EDGE_PADDING,
+          Math.min(e.clientX - dragOffsetRef.current.x, window.innerWidth - BUTTON_SIZE - EDGE_PADDING)
+        )
+        const nextY = Math.max(
+          EDGE_PADDING,
+          Math.min(e.clientY - dragOffsetRef.current.y, window.innerHeight - BUTTON_SIZE - EDGE_PADDING)
+        )
+        setPosition({ x: nextX, y: nextY })
+        return
+      }
+
+      // If pointer is down but not yet dragging, start drag when moved enough
+      if (pointerDownRef.current) {
+        const dx = Math.abs(e.clientX - initialPointerRef.current.x)
+        const dy = Math.abs(e.clientY - initialPointerRef.current.y)
+        if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+          // begin dragging
+          isDraggingRef.current = true
+          movedRef.current = true
+        }
+      }
     }
 
     const handlePointerUp = () => {
+      // clear any pending long-press
+      if (longPressTimeoutRef.current) {
+        window.clearTimeout(longPressTimeoutRef.current)
+        longPressTimeoutRef.current = null
+      }
       isDraggingRef.current = false
+      pointerDownRef.current = false
     }
 
     window.addEventListener('pointermove', handlePointerMove)
@@ -87,6 +132,10 @@ export default function BugReportButton() {
     return () => {
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
+      if (longPressTimeoutRef.current) {
+        window.clearTimeout(longPressTimeoutRef.current)
+        longPressTimeoutRef.current = null
+      }
     }
   }, [position])
 
@@ -142,19 +191,35 @@ export default function BugReportButton() {
           ? { left: position.x, top: position.y }
           : { bottom: theme.spacing.sm, left: theme.spacing.md }),
         zIndex: 999,
-        cursor: isDraggingRef.current ? 'grabbing' : 'grab',
+        cursor: isCtrlHeld ? (isDraggingRef.current ? 'grabbing' : 'grab') : 'pointer',
         touchAction: 'none'
       }}
       onPointerDown={(e) => {
         if (!position) return
-        e.preventDefault()
-        isDraggingRef.current = true
+        // Only allow initiating drag when Ctrl (or Meta) is held
+        if (!e.ctrlKey && !e.metaKey) {
+          return
+        }
+
+        // Start tracking pointer; only begin dragging after a long-press
+        pointerDownRef.current = true
         movedRef.current = false
+        initialPointerRef.current = { x: e.clientX, y: e.clientY }
         dragOffsetRef.current = {
           x: e.clientX - position.x,
-          y: e.clientY - position.y
+          y: e.clientY - position.y,
         }
         e.currentTarget.setPointerCapture?.(e.pointerId)
+
+        // If user holds for this duration, treat it as a drag start
+        if (longPressTimeoutRef.current) {
+          window.clearTimeout(longPressTimeoutRef.current)
+        }
+        longPressTimeoutRef.current = window.setTimeout(() => {
+          isDraggingRef.current = true
+          movedRef.current = true
+          longPressTimeoutRef.current = null
+        }, 250)
       }}
     >
       <button
@@ -219,7 +284,7 @@ export default function BugReportButton() {
             animation: 'fadeIn 0.2s ease-in-out',
           }}
         >
-          Report a bug or feedback
+          Click to report. ctrl + click to move.
         </div>
       )}
     </div>
