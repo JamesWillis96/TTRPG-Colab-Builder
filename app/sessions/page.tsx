@@ -392,7 +392,7 @@ export default function SessionsPage() {
     <main style={{
       minHeight: 'calc(100vh - 80px)',
       overflow: 'visible',
-      backgroundImage: 'url(https://cdna.artstation.com/p/assets/images/images/089/905/794/4k/bohao-wang-background-painting-study-bw.jpg)',
+      backgroundImage: 'url(https://cdna.artstation.com/p/assets/images/images/090/813/636/4k/fabien-salvalaggio-japanesetempleforest-lowres.jpg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
