@@ -118,6 +118,7 @@ export function WikiSidebar() {
           >
             {filteredEntries.map((entry) => (
               <li key={entry.id}>
+                <a href={`/wiki/${entry.slug}`}>
                 <button
                   onClick={() => selectEntry(entry)}
                   style={{
@@ -163,7 +164,9 @@ export function WikiSidebar() {
                   >
                     {entry.category}
                   </div>
+                  
                 </button>
+                </a>
               </li>
             ))}
           </ul>
