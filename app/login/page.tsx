@@ -56,7 +56,7 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem',
-      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundImage: 'url(https://cdna.artstation.com/p/assets/images/images/001/206/348/4k/david-edwards-kenden-001.jpg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',

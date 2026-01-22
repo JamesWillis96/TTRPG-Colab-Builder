@@ -95,12 +95,12 @@ export default function DashboardPage() {
         setGmNames(gmMap)
       }
 
-      // Fetch unique player count
-      const { data: allPlayers } = await supabase
-        .from('session_players')
-        .select('player_id')
-      const uniquePlayers = new Set(allPlayers?.map(p => p.player_id) || [])
-      setSessionStats(prev => ({ ...prev, players: uniquePlayers.size }))
+      // Count profiles directly (do not count guest signups)
+      const { data: profiles, count: profilesCount, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact' })
+      if (profilesErr) throw profilesErr
+      setSessionStats(prev => ({ ...prev, players: profilesCount ?? (profiles?.length || 0) }))
 
       // Fetch recent wiki pages
       const { data: wikiData } = await supabase
@@ -166,7 +166,7 @@ export default function DashboardPage() {
       minHeight: 'calc(100vh - 80px)',
       overflow: 'visible',
       backgroundImage: isDark 
-        ? 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)'
+        ? 'url(https://cdna.artstation.com/p/assets/images/images/001/206/348/4k/david-edwards-kenden-001.jpg)'
         : 'url(https://images.pdimagearchive.org/collections/bracelli-s-bizzarie-di-varie-figure-1624/46848687324_d613e135b4_b.jpg?width=1000&height=800)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
@@ -230,7 +230,8 @@ export default function DashboardPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '1rem'
         }}>
-          <div style={{
+          <a href="/sessions">
+            <div style={{
             background: isDark 
               ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.3) 100%)'
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
@@ -273,7 +274,9 @@ export default function DashboardPage() {
               Sessions
             </div>
           </div>
-
+          </a>
+          
+          <a href="/wiki">
           <div style={{
             background: isDark 
               ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.3) 100%)'
@@ -314,6 +317,7 @@ export default function DashboardPage() {
               Wiki Pages
             </div>
           </div>
+          </a>
 
           <div style={{
             background: isDark 
