@@ -392,7 +392,7 @@ export default function SessionsPage() {
     <main style={{
       minHeight: 'calc(100vh - 80px)',
       overflow: 'visible',
-      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundImage: 'url(https://cdna.artstation.com/p/assets/images/images/089/905/794/4k/bohao-wang-background-painting-study-bw.jpg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
