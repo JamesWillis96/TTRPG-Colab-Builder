@@ -196,6 +196,104 @@ export const wikiTemplates: Record<string, string> = {
 - [Hook 2]
 - [Hook 3]
 `,
+  'item/equipment': `# [Item Name]
+**Type:** [Weapon/Armor/Artifact/Consumable/Other]  
+**Rarity:** [Common/Uncommon/Rare/Legendary]  
+**Attunement/Use:** [Requirements or cost]  
+**Origin:** [Where did it come from?]
+----
+## Appearance
+
+[Describe materials, craftsmanship, and distinctive features.]
+
+## Powers & Properties
+
+- **Primary Effect:** [What it does]
+- **Secondary Effect:** [Optional]
+- **Limits:** [Charges, cooldowns, constraints]
+
+## History & Makers
+
+[Who created it and why.]
+
+## Ownership & Provenance
+
+- **Previous Owner:** [Name/role]
+- **How it was lost:** [Event]
+
+## Rumors & Lore
+
+- [Rumor 1]
+- [Rumor 2]
+
+## Risks & Drawbacks
+
+[Curses, consequences, or trade-offs.]
+
+## Adventure Hooks
+
+- [Hook 1]
+- [Hook 2]
+- [Hook 3]
+`,
+
+  aberration: `# [Aberration Name]
+**Origin:** [Emerged from essentia/colossus/experiment/other]  
+**Size:** [Small/Medium/Large/House-sized]  
+**Environment:** [Where it is commonly found]
+----
+## Description
+
+[Physical description, sensory details, and how it moves]
+
+## Behavior & Ecology
+
+- **Hunting/Tactics:** [Pack, ambush, swarm, etc.]
+- **Role in ecosystem:** [Predator, scavenger, guardian]
+
+## Abilities & Attacks
+
+- **Primary Attack(s):** [List and describe]
+- **Special Traits:** [E.g., burrowing, corrosive touch, swarm call]
+
+## Loot & Rewards
+
+[Items, essentia, or materials recovered from the aberration]
+
+## Adventure Hooks
+
+- [Hook 1]
+- [Hook 2]
+`,
+
+  artifact: `# [Artifact/Relic Name]
+**Type:** [Relic/Divine Remnant/Device/Other]  
+**Age:** [Estimated age or era]  
+**Affiliation:** [Kudamat, Forgotten Gods, Cult, etc.]
+----
+## Description & Significance
+
+[What it looks like and why it's important]
+
+## Powers & Effects
+
+- **Active Effect:** [What it does when used]
+- **Passive Effect:** [Area effects, ongoing influence]
+- **Costs/Corruption:** [Drawbacks or corruption mechanics]
+
+## History & Provenance
+
+[Who made it, how it was used, and notable owners]
+
+## Rituals & Uses
+
+[Known rituals, crafting uses, or ways to interact with it]
+
+## Adventure Hooks
+
+- [Hook 1]
+- [Hook 2]
+`,
   faction: `# [Faction Name]
 **Leader:** [Name and title]  
 **Symbols/Colors:** [Iconography, colors, banners]  

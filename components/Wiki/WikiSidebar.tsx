@@ -80,7 +80,7 @@ export function WikiSidebar() {
             cursor: 'pointer',
           }}
         >
-          <option value="">All Categories</option>
+          <option value="All">All Categories</option>
           {wikiCategories.map((cat) => (
             <option key={cat} value={cat}>
               {cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -118,7 +118,6 @@ export function WikiSidebar() {
           >
             {filteredEntries.map((entry) => (
               <li key={entry.id}>
-                <a href ={`/wiki?entry=${encodeURIComponent(entry.slug)}`}>
                 <button
                   onClick={() => selectEntry(entry)}
                   style={{
@@ -165,7 +164,6 @@ export function WikiSidebar() {
                     {entry.category}
                   </div>
                 </button>
-                </a>
               </li>
             ))}
           </ul>

@@ -3,7 +3,9 @@ export const wikiCategories = [
   'player character',
   'location',
   'lore',
-  'item',
+  'item/equipment',
+  'artifact',
+  'aberration',
   'faction',
   'collosi',
   'general'
