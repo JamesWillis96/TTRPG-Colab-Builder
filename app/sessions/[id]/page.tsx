@@ -29,12 +29,13 @@ type Signup = {
   id: string
   session_id: string
   player_id: string 
+  guest_profile_id?: string
   signed_up_at: string
   profile?: Profile
 }
 
 export default function SessionDetailPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { theme, styles } = useTheme()
   const params = useParams()
   const router = useRouter()
@@ -46,6 +47,43 @@ export default function SessionDetailPage() {
   const [signups, setSignups] = useState<Signup[]>([])
   const [loading, setLoading] = useState(true)
   const [isGM, setIsGM] = useState(false)
+  const [showGuestModal, setShowGuestModal] = useState(false)
+  const [guestName, setGuestName] = useState('')
+  const [guestError, setGuestError] = useState('')
+  const [guestLoading, setGuestLoading] = useState(false)
+  // Helper: is guest user (anonymous, no profile)
+  const isGuest = user && (!profile || profile.role === 'guest' || profile.username?.toLowerCase().startsWith('guest'))
+  // Guest sign up handler
+  const handleGuestSignup = async () => {
+    setGuestError('')
+    if (!guestName.trim()) {
+      setGuestError('Please enter a name.')
+      return
+    }
+    setGuestLoading(true)
+    try {
+      // 1. Create guest_profiles entry if not exists and add to session_players as guest_profile_id
+      let guestProfileId = user?.id
+      if (!profile) {
+        const { data: gidData, error: gidErr } = await supabase.rpc('create_or_increment_guest', { _username: guestName })
+        if (gidErr) throw gidErr
+        const gid = Array.isArray(gidData) ? gidData[0] : (gidData as any)
+        guestProfileId = String(gid)
+      }
+      // 2. Add to session_players
+      const { error: signupErr } = await supabase
+        .from('session_players')
+        .insert([{ session_id: sessionId, guest_profile_id: guestProfileId }])
+      if (signupErr) throw signupErr
+      setShowGuestModal(false)
+      setGuestName('')
+      await loadSession()
+    } catch (err: any) {
+      setGuestError(err.message || 'Could not sign up as guest')
+    } finally {
+      setGuestLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (sessionId) {
@@ -74,7 +112,8 @@ export default function SessionDetailPage() {
       }
 
       setSession(sessionData)
-      setIsGM(user?.id === sessionData.gm_id)
+      // Allow session creator (GM) or admins to manage signups
+      setIsGM(user?.id === sessionData.gm_id || profile?.role === 'admin')
 
       // 2. Load signups
       const { data: signupsData, error: signupsError } = await supabase
@@ -90,22 +129,37 @@ export default function SessionDetailPage() {
         return
       }
 
-      // 3. Load profiles for all signed up players
-      const playerIds = signupsData.map(s => s.player_id)  // Changed from user_id to player_id
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', playerIds)
+      // 3. Load profiles for all signed up players (real and guest)
+      const playerIds = signupsData.map(s => s.player_id).filter(Boolean)
+      const guestIds = signupsData.map(s => s.guest_profile_id).filter(Boolean)
 
-      if (profilesError) throw profilesError
+      let profilesData: any[] = []
+      let guestProfilesData: any[] = []
+      if (playerIds.length) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', playerIds)
+        if (error) throw error
+        profilesData = data || []
+      }
+      if (guestIds.length) {
+        const { data, error } = await supabase
+          .from('guest_profiles')
+          .select('*')
+          .in('id', guestIds)
+        if (error) throw error
+        guestProfilesData = data || []
+      }
 
       // 4. Combine signups with profiles
-      const signupsWithProfiles: Signup[] = signupsData.map(signup => ({
+      const signupsWithProfiles: Signup[] = signupsData.map((signup: any) => ({
         id: signup.id,
         session_id: signup.session_id,
-        player_id: signup.player_id,  // Changed from user_id to player_id
+        player_id: signup.player_id,
+        guest_profile_id: signup.guest_profile_id,
         signed_up_at: signup.created_at,
-        profile: profilesData?.find(p => p.id === signup.player_id)  // Changed from user_id to player_id
+        profile: profilesData?.find(p => p.id === signup.player_id) || guestProfilesData?.find(g => g.id === signup.guest_profile_id)
       }))
 
       setSignups(signupsWithProfiles)
@@ -119,6 +173,12 @@ export default function SessionDetailPage() {
 
   const handleRemovePlayer = async (signupId: string) => {
     if (!confirm('Are you sure you want to remove this player?')) return
+
+    // Authorize: only session GM or admins can remove players
+    if (!(user?.id === session?.gm_id || profile?.role === 'admin')) {
+      alert('You are not authorized to remove players from this session.')
+      return
+    }
 
     try {
       const { error } = await supabase
@@ -247,7 +307,7 @@ export default function SessionDetailPage() {
         )}
       </div>
 
-      {/* Players List */}
+      {/* Players List & Guest Signup */}
       <div style={styles.section}>
         <h2 style={styles.heading2}>
           Signed Up Players ({signups.length})
@@ -293,7 +353,90 @@ export default function SessionDetailPage() {
             ))}
           </div>
         )}
+
+        {/* Guest sign up block */}
+        {isGuest && !signups.some(s => (s.player_id === user?.id) || (s.guest_profile_id === user?.id)) && session.status === 'open' && (
+          <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+            <button
+              style={{
+                ...styles.button.primary,
+                fontSize: '1.1rem',
+                padding: '0.75rem 2rem',
+                margin: '0 auto',
+                display: 'block'
+              }}
+              onClick={() => setShowGuestModal(true)}
+            >
+              Sign Up for This Session
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Guest Name Modal */}
+      {showGuestModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: theme.colors.background.secondary,
+            borderRadius: theme.borderRadius,
+            padding: '2rem',
+            minWidth: 320,
+            boxShadow: '0 4px 32px rgba(0,0,0,0.25)',
+            border: `1px solid ${theme.colors.border.primary}`
+          }}>
+            <h3 style={{ color: theme.colors.text.primary, marginBottom: '1rem' }}>Enter Your Name</h3>
+            <input
+              type="text"
+              value={guestName}
+              onChange={e => setGuestName(e.target.value)}
+              placeholder="Display name for this session"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: theme.borderRadius,
+                border: `1px solid ${theme.colors.border.primary}`,
+                fontSize: '1rem',
+                marginBottom: '1rem',
+                background: theme.colors.background.input,
+                color: theme.colors.text.primary
+              }}
+              maxLength={32}
+              autoFocus
+              disabled={guestLoading}
+            />
+            {guestError && (
+              <div style={{ color: theme.colors.danger, marginBottom: '1rem', fontSize: '0.95rem' }}>{guestError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowGuestModal(false)}
+                style={{ ...styles.button.secondary, minWidth: 90 }}
+                disabled={guestLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGuestSignup}
+                style={{ ...styles.button.primary, minWidth: 120 }}
+                disabled={guestLoading}
+              >
+                {guestLoading ? 'Signing Up...' : 'Sign Up'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

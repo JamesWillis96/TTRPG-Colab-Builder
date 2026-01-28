@@ -80,7 +80,7 @@ export function WikiSidebar() {
             cursor: 'pointer',
           }}
         >
-          <option value="">All Categories</option>
+          <option value="All">All Categories</option>
           {wikiCategories.map((cat) => (
             <option key={cat} value={cat}>
               {cat.charAt(0).toUpperCase() + cat.slice(1)}

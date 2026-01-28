@@ -95,9 +95,14 @@ export default function WikiPageView() {
         .select('id, title')
         .is('deleted_at', null)
         .eq('wiki_page_id', page.id)
-        .single()
+        .limit(1)
+        .maybeSingle()
         .then(({ data }) => {
-          if (data) setPoi(data)
+          if (data) {
+            setPoi(data)
+          } else {
+            setPoi(null)
+          }
         })
 
       fetchAttachments(page.id)
@@ -298,9 +303,9 @@ export default function WikiPageView() {
               fontWeight: 'bold',
               marginBottom: '1rem', // Add spacing for mobile
             }}
-            title={`Go to map location: ${poi.title}`}
+            title={`Show on map: ${poi.title}`}
           >
-            Go to Map →
+            Show on Map →
           </a>
         )}
       </div>

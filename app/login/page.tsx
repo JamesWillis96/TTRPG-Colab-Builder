@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [guestLoading, setGuestLoading] = useState(false)
   const { user } = useAuth()
   const { theme, styles } = useTheme()
   const router = useRouter()
@@ -44,6 +45,10 @@ export default function LoginPage() {
     }
   }
 
+  const handleGuestLogin = async () => {
+    router.push('/sessions?guest')
+  }
+
   return (
     <main style={{ 
       minHeight: '100vh',
@@ -51,7 +56,7 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem',
-      backgroundImage: 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)',
+      backgroundImage: 'url(https://cdna.artstation.com/p/assets/images/images/001/206/348/4k/david-edwards-kenden-001.jpg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
@@ -153,6 +158,49 @@ export default function LoginPage() {
         Don't have an account?{' '}
         <a href="/signup" style={{ color: theme.colors.primary }}>Sign up</a>
       </p>
+
+      <div style={{
+        marginTop: '1.5rem',
+        paddingTop: '1.5rem',
+        borderTop: `1px solid ${theme.colors.border.secondary}`
+      }}>
+        <h2 style={{
+          margin: 0,
+          marginBottom: '0.5rem',
+          fontSize: '1.1rem',
+          color: theme.colors.text.primary,
+          textAlign: 'center'
+        }}>
+          Guest Signup
+        </h2>
+        <p style={{
+          margin: 0,
+          marginBottom: '1rem',
+          fontSize: '0.9rem',
+          color: theme.colors.text.secondary,
+          textAlign: 'center'
+        }}>
+          Sign Up for a session as a guest.
+        </p>
+        <button
+          type="button"
+          onClick={handleGuestLogin}
+          disabled={guestLoading}
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: guestLoading ? theme.colors.background.tertiary : theme.colors.background.main,
+            color: guestLoading ? theme.colors.text.muted : theme.colors.text.primary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            fontSize: '0.95rem',
+            fontWeight: 600,
+            cursor: guestLoading ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {guestLoading ? 'Starting Guest Session...' : 'Continue as Guest'}
+        </button>
+      </div>
       </div>
     </main>
   )

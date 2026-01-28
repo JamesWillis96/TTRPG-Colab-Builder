@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { wikiTemplates } from '../../lib/wikiTemplates'
 
 type POI = {
   id: string
@@ -51,7 +52,6 @@ export default function MapEditorPage() {
     location: true,
     npc: true,
     faction: true,
-    lore: true,
     item: true
   })
   const [showCreatePopup, setShowCreatePopup] = useState(false)
@@ -67,6 +67,8 @@ export default function MapEditorPage() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [mapDimensions, setMapDimensions] = useState({ width: 1920, height: 1080 })
   const [mapLoading, setMapLoading] = useState(true)
+  const [didInitialFit, setDidInitialFit] = useState(false)
+  const [navOffset, setNavOffset] = useState(0)
 
   // POI State
   const [pois, setPois] = useState<POI[]>([])
@@ -100,6 +102,18 @@ export default function MapEditorPage() {
     }
   }, [profile?.role])
 
+  // Measure navbar height so map fits between nav and bottom
+  useEffect(() => {
+    const measureNav = () => {
+      const nav = document.querySelector('nav') as HTMLElement | null
+      setNavOffset(nav ? nav.offsetHeight : 0)
+    }
+
+    measureNav()
+    window.addEventListener('resize', measureNav)
+    return () => window.removeEventListener('resize', measureNav)
+  }, [])
+
   // Auth & Load
   useEffect(() => {
     if (!authLoading && !user) {
@@ -129,26 +143,61 @@ export default function MapEditorPage() {
     }
   }, [searchParams, pois, mapDimensions])
 
+  const centerMapToContainer = (container: HTMLDivElement, mapWidth: number, mapHeight: number, mapScale: number) => {
+    const centerX = (container.clientWidth - mapWidth * mapScale) / 2
+    const centerY = (container.clientHeight - mapHeight * mapScale) / 2
+    setPosition({ x: centerX, y: centerY })
+  }
+
+  const fitMapToHeight = (container: HTMLDivElement, mapWidth: number, mapHeight: number) => {
+    // Uses container height which already excludes the navbar offset
+    const availableHeight = container.clientHeight
+    const fitScale = availableHeight / mapHeight
+    setScale(fitScale)
+    centerMapToContainer(container, mapWidth, mapHeight, fitScale)
+  }
+
+  const fitMapToWidth = (container: HTMLDivElement, mapWidth: number, mapHeight: number) => {
+    const fitScale = container.clientWidth / mapWidth
+    setScale(fitScale)
+    centerMapToContainer(container, mapWidth, mapHeight, fitScale)
+  }
+
+  const fitMapToContainer = (container: HTMLDivElement, mapWidth: number, mapHeight: number) => {
+    const fitScale = Math.min(
+      container.clientWidth / mapWidth,
+      container.clientHeight / mapHeight
+    )
+    setScale(fitScale)
+    centerMapToContainer(container, mapWidth, mapHeight, fitScale)
+  }
+
   // Load map image dimensions
   const loadMapDimensions = () => {
     const img = new Image()
     img.onload = () => {
       setMapDimensions({ width: img.width, height: img.height })
-      if (containerRef.current) {
-        const container = containerRef.current
-        const fitScale = Math.min(
-          container.clientWidth / img.width,
-          container.clientHeight / img.height
-        )
-        const fitX = (container.clientWidth - img.width * fitScale) / 2
-        const fitY = (container.clientHeight - img.height * fitScale) / 2
-        setScale(fitScale)
-        setPosition({ x: fitX, y: fitY })
-      }
       setMapLoading(false)
     }
     img.src = '/world-map.png'
   }
+
+  // Ensure initial fit once container is ready
+  useEffect(() => {
+    if (didInitialFit || mapLoading || loading) return
+    const container = containerRef.current
+    if (!container) return
+    if (container.clientWidth === 0 || container.clientHeight === 0) return
+
+    const id = window.requestAnimationFrame(() => {
+      fitMapToContainer(container, mapDimensions.width, mapDimensions.height)
+      // fitMapToWidth(container, mapDimensions.width, mapDimensions.height)
+      // fitMapToHeight(container, mapDimensions.width, mapDimensions.height)
+      setDidInitialFit(true)
+    })
+
+    return () => window.cancelAnimationFrame(id)
+  }, [didInitialFit, mapLoading, loading, mapDimensions.width, mapDimensions.height, scale])
 
   // Load POIs
   const loadPOIs = async () => {
@@ -242,7 +291,7 @@ export default function MapEditorPage() {
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="19.785 65.718 63.181 125"
-          style={{ width: '40px', height: '80px', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.8))` }}
+          style={{ width: '28px', height: '56px', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.8))` }}
         >
           <path
             d="M67.463,129.923C54.3,148.789,52.398,164.73,52.398,164.73c-0.292,1.316-1.462,1.316-1.755,0 c0,0-2.486-15.941-15.356-34.808c-10.676-14.918-15.502-20.769-15.502-32.907c0-17.404,13.894-31.298,31.444-31.298 c17.404,0,31.737,13.894,31.737,31.298C82.966,109.154,73.605,121.001,67.463,129.923z M63.66,97.601 c0-6.728-5.265-11.992-12.139-11.992c-6.436,0-11.847,5.265-11.847,11.992s5.411,12.432,11.847,12.432 C58.396,110.032,63.66,104.328,63.66,97.601z"
@@ -254,11 +303,48 @@ export default function MapEditorPage() {
     switch (category) {
       case 'npc':
       case 'player character':
-        return '👤'
+        return (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            version="1.1"
+            viewBox="-5.0 -10.0 110.0 135.0"
+            style={{ width: '35px', height: '45px', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.6))` }}
+          >
+            <path
+              d="m70.961 54.422c11.398 3.5898 19.664 14.246 19.664 26.828v3.125c0 2.4844-0.98828 4.8711-2.7461 6.6289-1.7578 1.7578-4.1445 2.7461-6.6289 2.7461h-62.5c-2.4844 0-4.8711-0.98828-6.6289-2.7461-1.7578-1.7578-2.7461-4.1445-2.7461-6.6289v-3.125c0-12.586 8.2656-23.238 19.664-26.828 5.5469 5.0195 12.898 8.0781 20.961 8.0781s15.414-3.0586 20.961-8.0781zm-20.961-48.172c13.797 0 25 11.203 25 25s-11.203 25-25 25-25-11.203-25-25 11.203-25 25-25z"
+              fillRule="evenodd"
+              fill={color || '#4b5563'}
+            />
+          </svg>
+        )
       case 'faction':
-        return '🛉️'
+        return (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 243 446.25"
+            style={{ width: '35px', height: '45px', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.6))` }}
+          >
+            <path
+              d="M243 3c-75,140 -149,-78 -224,32l0 -25c0,-13 -19,-13 -19,0l0 338c0,13 19,13 19,0l0 -166c75,-110 149,108 224,-32 0,-49 0,-98 0,-146z"
+              fill={color || '#4b5563'}
+              fillRule="evenodd"
+              clipRule="evenodd"
+            />
+          </svg>
+        )
       case 'item':
-        return '⚔️'
+        return (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 48 60"
+            style={{ width: '35px', height: '45px', filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.6))` }}
+          >
+            <path
+              d="M44,9.44l-5.2-5.91a4,4,0,0,0-.79-.7h0a5.07,5.07,0,0,0-.64-.37c-.09-.05-.19-.08-.28-.12s-.36-.13-.54-.18l-.27-.06A4.58,4.58,0,0,0,35.48,2H11.76A4.46,4.46,0,0,0,8.2,3.76L3.77,9.52a4.58,4.58,0,0,0-.93,3,4.42,4.42,0,0,0,.67,2.56l16.74,28.3a4.45,4.45,0,0,0,1.62,1.52,4.4,4.4,0,0,0,2.18.57,4.51,4.51,0,0,0,3.81-2.12l16.61-28.1a4.52,4.52,0,0,0,.69-2.67A4.6,4.6,0,0,0,44,9.44ZM24,4.51,29.77,11H18.23ZM5.35,10.74,9.77,5l4.29,6H5.19A2.26,2.26,0,0,1,5.35,10.74Zm18.7,29.33L17.28,13H30.72ZM33.85,11l3.8-5.81,4.89,5.57c.07.08.12.16.18.24Z"
+              fill={color || '#4b5563'}
+            />
+          </svg>
+        )
       case 'lore':
         return '📜'
       default:
@@ -445,13 +531,16 @@ export default function MapEditorPage() {
       const slug = poiTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')
       const enforcedCategory = isGM ? poiCategory : 'location'
       const enforcedVisibility = isGM ? poiVisibility : 'rumored'
-      const enforcedColor = enforcedCategory === 'location' ? poiColor : undefined
+      const enforcedColor = poiColor
+      const baseTemplate = wikiTemplates[enforcedCategory] || wikiTemplates.location
+      const templateWithTitle = baseTemplate.replace(/^#\s+.*$/m, `# ${poiTitle}`)
+      const content = `${templateWithTitle}\n\n---\n\n**Map Note:** This entry is linked to a map point of interest.\n`
       const { data: wikiPage, error: wikiError } = await supabase
         .from('wiki_pages')
         .insert({
           title: poiTitle,
           slug,
-          content: `# ${poiTitle}\n\nA location on the world map.\n\n## Description\n\n*Add description here*`,
+          content,
           category: enforcedCategory,
           author_id: user.id
         })
@@ -500,6 +589,15 @@ export default function MapEditorPage() {
         .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null })
         .eq('id', selectedPoi.id)
       if (error) throw error
+
+      if (selectedPoi.wiki_page_id) {
+        const { error: wikiError } = await supabase
+          .from('wiki_pages')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('id', selectedPoi.wiki_page_id)
+        if (wikiError) throw wikiError
+      }
+
       setPois(pois.filter(p => p.id !== selectedPoi.id))
       setRightSidebarOpen(false)
       setSelectedPoi(null)
@@ -547,9 +645,14 @@ export default function MapEditorPage() {
   return (
     <main
       style={{
-        height: 'calc(100vh - 55px)',
+        position: 'fixed',
+        inset: 0,
+        top: navOffset,
+        height: `calc(100dvh - ${navOffset}px)`,
+        minHeight: `calc(100dvh - ${navOffset}px)`,
+        maxHeight: `calc(100dvh - ${navOffset}px)`,
+        width: '100%',
         overflow: 'hidden',
-        position: 'relative',
         background: theme.colors.background.main,
         display: 'flex'
       }}
@@ -559,6 +662,7 @@ export default function MapEditorPage() {
         style={{
           width: leftSidebarOpen ? '280px' : '0px',
           height: '100%',
+          maxHeight: '100%',
           background: theme.colors.background.secondary,
           borderRight: `1px solid ${theme.colors.border.primary}`,
           display: 'flex',
@@ -670,38 +774,6 @@ export default function MapEditorPage() {
           </div>
         )}
 
-        {/* Visibility Legend */}
-        <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.main }}>
-          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
-            Visibility Legend
-          </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem' }}>
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.9rem' }}>👁️</span>
-              <span style={{ color: theme.colors.text.primary }}>Public</span>
-            </div>
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.9rem' }}>❓</span>
-              <span style={{ color: theme.colors.text.primary }}>Rumored</span>
-            </div>
-            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.9rem' }}>🔒</span>
-              <span style={{ color: theme.colors.text.primary }}>GM Only</span>
-            </div>
-          </div>
-        </div>
-
-        {/* POI Creation Hints */}
-        <div style={{ padding: '0.75rem', borderBottom: `1px solid ${theme.colors.border.primary}`, background: theme.colors.background.main }}>
-          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
-            💡 Quick Tips
-          </label>
-          <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.8rem', color: theme.colors.text.primary }}>
-            <li>Right-click on map to create</li>
-            <li>Ctrl+drag to move POIs {isGM ? '' : '(GM only)'}</li>
-            <li>Click name to view details</li>
-          </ul>
-        </div>
 
         {/* POI List */}
         <div
@@ -750,7 +822,25 @@ export default function MapEditorPage() {
                   onMouseEnter={() => setHoveredPoiId(poi.id)}
                   onMouseLeave={() => setHoveredPoiId(null)}
                 >
-                  <span style={{ fontSize: '0.3rem', display: 'flex', alignItems: 'center' }}>{getPOIIcon(poi.category || 'location', poi.color)}</span>
+                  <span
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        transform: 'scale(0.35)',
+                        transformOrigin: 'center'
+                      }}
+                    >
+                      {getPOIIcon(poi.category || 'location', poi.color)}
+                    </span>
+                  </span>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {poi.title}
                   </span>
@@ -800,27 +890,6 @@ export default function MapEditorPage() {
         </div>
       </div>
 
-      {/* Sidebar Toggle */}
-      {!leftSidebarOpen && (
-        <button
-          onClick={() => setLeftSidebarOpen(true)}
-          style={{
-            position: 'absolute',
-            left: '0.5rem',
-            top: '0.5rem',
-            zIndex: 19,
-            padding: '0.5rem 0.75rem',
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.border.primary}`,
-            borderRadius: theme.borderRadius,
-            color: theme.colors.text.primary,
-            cursor: 'pointer',
-            fontSize: '0.875rem'
-          }}
-        >
-          ☰
-        </button>
-      )}
 
       {/* Map Container */}
       <div
@@ -846,6 +915,62 @@ export default function MapEditorPage() {
           touchAction: 'none'
         }}
       >
+        {/* Overlay: Visibility Legend (top-left, offset by sidebar) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '4.75rem',
+            left: '8px',
+            background: theme.colors.background.secondary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            padding: '0.6rem 0.75rem',
+            zIndex: 5,
+            minWidth: '170px'
+          }}
+        >
+          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+            Visibility Legend
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem' }}>👁️</span>
+              <span style={{ color: theme.colors.text.primary }}>Public</span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem' }}>❓</span>
+              <span style={{ color: theme.colors.text.primary }}>Rumored</span>
+            </div>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem' }}>🔒</span>
+              <span style={{ color: theme.colors.text.primary }}>GM Only</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Overlay: Quick Tips (bottom-left, offset by sidebar) */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '0.75rem',
+            left: '8px',
+            background: theme.colors.background.secondary,
+            border: `1px solid ${theme.colors.border.primary}`,
+            borderRadius: theme.borderRadius,
+            padding: '0.6rem 0.75rem',
+            zIndex: 5,
+            minWidth: '220px'
+          }}
+        >
+          <label style={{ fontSize: '0.75rem', color: theme.colors.text.secondary, marginBottom: '6px', display: 'block' }}>
+            💡 Quick Tips
+          </label>
+          <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.8rem', color: theme.colors.text.primary }}>
+            <li>Right-click on map to create</li>
+            <li>Ctrl+drag to move POIs {isGM ? '' : '(GM only)'}</li>
+            <li>Click name to view details</li>
+          </ul>
+        </div>
         {/* POI Markers */}
         {visiblePois.map(poi => {
           const visBadge = getVisibilityBadge(poi.visibility)
@@ -948,6 +1073,48 @@ export default function MapEditorPage() {
         })}
       </div>
 
+      {/* Sidebar Toggle */}
+      <button
+        type="button"
+        onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+        style={{
+          position: 'absolute',
+          left: leftSidebarOpen ? '280px' : '0px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 200,
+          width: '12px',
+          height: '72px',
+          padding: 0,
+          background: theme.colors.background.secondary,
+          border: `1px solid ${theme.colors.border.primary}`,
+          borderRadius: theme.borderRadius,
+          color: theme.colors.text.primary,
+          cursor: 'pointer',
+          fontSize: '0.85rem',
+          boxShadow: theme.shadow,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+        aria-label={leftSidebarOpen ? 'Retract left panel' : 'Expand left panel'}
+      >
+        <span
+          style={{
+            display: 'flex',
+            gap: '2px',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <span style={{ width: '2px', height: '12px', background: theme.colors.text.primary, borderRadius: '2px' }} />
+          <span style={{ width: '1.5px', height: '12px', background: theme.colors.text.primary, borderRadius: '2px' }} />
+          <span style={{ width: '1.5px', height: '12px', background: theme.colors.text.primary, borderRadius: '2px' }} />
+          <span style={{ width: '1.5px', height: '12px', background: theme.colors.text.primary, borderRadius: '2px' }} />
+        </span>
+      </button>
+
       {/* Controls Toolbar - Top Right */}
       <div
         style={{
@@ -1038,6 +1205,7 @@ export default function MapEditorPage() {
         style={{
           width: rightSidebarOpen ? '320px' : '0px',
           height: '100%',
+          maxHeight: '100%',
           background: theme.colors.background.secondary,
           borderLeft: `1px solid ${theme.colors.border.primary}`,
           display: 'flex',
@@ -1061,7 +1229,7 @@ export default function MapEditorPage() {
             >
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: theme.colors.text.primary, marginBottom: '4px' }}>
-                  {getPOIIcon(selectedPoi.category || 'location')} {selectedPoi.title}
+                  {getPOIIcon(selectedPoi.category || 'location', selectedPoi.color)} {selectedPoi.title}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: theme.colors.text.tertiary }}>
                   {selectedPoi.category || 'location'}
@@ -1382,7 +1550,6 @@ export default function MapEditorPage() {
                 {isGM && <option value="npc">👤 NPC</option>}
                 {isGM && <option value="faction">🛡️ Faction</option>}
                 {isGM && <option value="item">⚔️ Item</option>}
-                {isGM && <option value="lore">📜 Lore</option>}
               </select>
               {!isGM && (
                 <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: theme.colors.text.secondary }}>
@@ -1410,7 +1577,7 @@ export default function MapEditorPage() {
               )}
             </div>
 
-            {(isGM && poiCategory === 'location') && (
+            {(isGM && (poiCategory === 'location' || poiCategory === 'npc' || poiCategory === 'faction' || poiCategory === 'item')) && (
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={styles.label}>Pin Color</label>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

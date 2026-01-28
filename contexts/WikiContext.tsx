@@ -133,6 +133,12 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
   const [editingEntry, setEditingEntry] = useState<WikiEntry | null>(null)
   const [selectedMarkdownTheme, setSelectedMarkdownTheme] = useState<MarkdownTheme>('github')
   const [initialEntrySlug, setInitialEntrySlug] = useState<string | null>(null)
+  const [initialNewEntry, setInitialNewEntry] = useState(false)
+
+  const openEditModal = useCallback((entry?: WikiEntry) => {
+    setEditingEntry(entry || null)
+    setIsEditModalOpen(true)
+  }, [])
 
   // Derived data
   const categories = ['All', ...new Set(entries.map(e => e.category))]
@@ -167,6 +173,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     const params = new URLSearchParams(window.location.search)
     const slug = params.get('entry')
     if (slug) setInitialEntrySlug(slug)
+    if (params.has('new-entry')) setInitialNewEntry(true)
   }, [])
 
   // Load recently viewed from localStorage
@@ -294,6 +301,23 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
       setInitialEntrySlug(null)
     }
   }, [initialEntrySlug, entries, selectedEntry])
+
+  // Auto-open new entry modal if &new-entry is present
+  useEffect(() => {
+    if (!initialNewEntry) return
+    if (!user) return
+    if (isEditModalOpen) return
+    openEditModal()
+    setInitialNewEntry(false)
+
+    // Optional: remove the flag from the URL to prevent reopening
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.delete('new-entry')
+      const next = params.toString()
+      window.history.replaceState(null, '', `/wiki${next ? `?${next}` : ''}`)
+    }
+  }, [initialNewEntry, user, isEditModalOpen, openEditModal])
 
   // Save (create or update) an entry
   async function saveEntry(data: EntryFormData, entryIdToUpdate?: string) {
@@ -460,10 +484,7 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     updateSearchQuery: setSearchQuery,
     updateCategory: setSelectedCategory,
     setSidebarOpen,
-    openEditModal: (entry?: WikiEntry) => {
-      setEditingEntry(entry || null)
-      setIsEditModalOpen(true)
-    },
+    openEditModal,
     closeEditModal: () => {
       setIsEditModalOpen(false)
       setEditingEntry(null)

@@ -157,74 +157,240 @@ export const wikiTemplates: Record<string, string> = {
 [Add any other context, theories, or implications.]
 `,
   item: `# [Item Name]
-**Type:** [Weapon, Armor, Potion, Artifact, etc.]  
-**Rarity:** [Common, Uncommon, Rare, Legendary, etc.]  
-**Value:** [Gold piece equivalent or other value]
+**Type:** [Weapon/Armor/Artifact/Consumable/Other]  
+**Rarity:** [Common/Uncommon/Rare/Legendary]  
+**Attunement/Use:** [Requirements or cost]  
+**Origin:** [Where did it come from?]
 ----
-## What is this item and what does it look like?
+## Appearance
 
-[Description]
+[Describe materials, craftsmanship, and distinctive features.]
 
-## What powers, abilities, or properties does it have?
+## Powers & Properties
 
-[Description]
+- **Primary Effect:** [What it does]
+- **Secondary Effect:** [Optional]
+- **Limits:** [Charges, cooldowns, constraints]
 
-## What is its origin or history?
+## History & Makers
 
-[Description]
+[Who created it and why.]
 
-## Who can use it, and are there any requirements or restrictions?
+## Ownership & Provenance
 
-[Description]
+- **Previous Owner:** [Name/role]
+- **How it was lost:** [Event]
 
-## What is a story or rumor associated with this item?
+## Rumors & Lore
 
-[Story/Rumor]
+- [Rumor 1]
+- [Rumor 2]
 
-## What is a drawback, risk, or cost of using it?
+## Risks & Drawbacks
 
-[Description]
+[Curses, consequences, or trade-offs.]
 
-## Additional Notes
+## Adventure Hooks
 
-[Add any other details, plot hooks, or secrets.]
+- [Hook 1]
+- [Hook 2]
+- [Hook 3]
+`,
+  'item/equipment': `# [Item Name]
+**Type:** [Weapon/Armor/Artifact/Consumable/Other]  
+**Rarity:** [Common/Uncommon/Rare/Legendary]  
+**Attunement/Use:** [Requirements or cost]  
+**Origin:** [Where did it come from?]
+----
+## Appearance
+
+[Describe materials, craftsmanship, and distinctive features.]
+
+## Powers & Properties
+
+- **Primary Effect:** [What it does]
+- **Secondary Effect:** [Optional]
+- **Limits:** [Charges, cooldowns, constraints]
+
+## History & Makers
+
+[Who created it and why.]
+
+## Ownership & Provenance
+
+- **Previous Owner:** [Name/role]
+- **How it was lost:** [Event]
+
+## Rumors & Lore
+
+- [Rumor 1]
+- [Rumor 2]
+
+## Risks & Drawbacks
+
+[Curses, consequences, or trade-offs.]
+
+## Adventure Hooks
+
+- [Hook 1]
+- [Hook 2]
+- [Hook 3]
+`,
+
+  aberration: `# [Aberration Name]
+**Origin:** [Emerged from essentia/colossus/experiment/other]  
+**Size:** [Small/Medium/Large/House-sized]  
+**Environment:** [Where it is commonly found]
+----
+## Description
+
+[Physical description, sensory details, and how it moves]
+
+## Behavior & Ecology
+
+- **Hunting/Tactics:** [Pack, ambush, swarm, etc.]
+- **Role in ecosystem:** [Predator, scavenger, guardian]
+
+## Abilities & Attacks
+
+- **Primary Attack(s):** [List and describe]
+- **Special Traits:** [E.g., burrowing, corrosive touch, swarm call]
+
+## Loot & Rewards
+
+[Items, essentia, or materials recovered from the aberration]
+
+## Adventure Hooks
+
+- [Hook 1]
+- [Hook 2]
+`,
+
+  artifact: `# [Artifact/Relic Name]
+**Type:** [Relic/Divine Remnant/Device/Other]  
+**Age:** [Estimated age or era]  
+**Affiliation:** [Kudamat, Forgotten Gods, Cult, etc.]
+----
+## Description & Significance
+
+[What it looks like and why it's important]
+
+## Powers & Effects
+
+- **Active Effect:** [What it does when used]
+- **Passive Effect:** [Area effects, ongoing influence]
+- **Costs/Corruption:** [Drawbacks or corruption mechanics]
+
+## History & Provenance
+
+[Who made it, how it was used, and notable owners]
+
+## Rituals & Uses
+
+[Known rituals, crafting uses, or ways to interact with it]
+
+## Adventure Hooks
+
+- [Hook 1]
+- [Hook 2]
 `,
   faction: `# [Faction Name]
 **Leader:** [Name and title]  
-**Base of Operations:** [Location]  
+**Symbols/Colors:** [Iconography, colors, banners]  
+**Base of Operations:** [HQ or primary region]  
 **Primary Goal:** [Goal or ideology]
 ----
-## What is the purpose or ideology of this group?
+## What is the faction's public face?
 
-[Description]
+[How it presents itself to the world.]
 
-## Who leads it, and how is it organized?
+## What is it really about?
 
-[Description]
+[True agenda or hidden purpose.]
 
-## What is the group's history or origin?
+## Leadership & Structure
 
-[Description]
+- **Inner Circle:** [Key decision-makers]
+- **Ranks:** [Titles or tiers]
+- **Recruitment:** [How members are inducted]
 
-## Who are its allies and enemies?
+## Assets & Influence
 
-[Description]
+- **Resources:** [Wealth, supplies, magic, information]
+- **Territory:** [Where it holds power]
+- **Leverage:** [Secrets, favors, blackmail]
 
-## What resources, power, or influence does it have?
+## Allies & Rivals
 
-[Description]
+- **Allies:** [Friendly groups]
+- **Rivals:** [Opposing factions]
+- **Wildcards:** [Unpredictable relationships]
 
-## What are its current goals or activities?
+## Current Operations
 
-[Description]
+- **Project 1:** [Goal + stakes]
+- **Project 2:** [Goal + stakes]
+- **Project 3:** [Goal + stakes]
 
-## What is a secret or internal conflict within the faction?
+## Secrets & Fault Lines
 
-[Secret/Conflict]
+- **Secret:** [Hidden truth]
+- **Conflict:** [Internal schism or pressure point]
 
-## Additional Notes
+## Notable Members
 
-[Add any other relevant information, rumors, or story hooks.]
+- **Name:** [Role/trait]
+- **Name:** [Role/trait]
+
+## Story Hooks
+
+- [Hook 1]
+- [Hook 2]
+- [Hook 3]
+`
+  ,
+  // Template for Collosi (large ancient constructs/creatures)
+  collosi: `# [Colossi Name]
+**Type:** [Titan/Construct/Natural/God-forged/etc.]  
+**Scale:** [Height/weight/relative size]  
+**Location:** [Where it dwells or was found]  
+**Known By:** [Cult, nation, explorers]
+----
+## What is the Colossi's origin or purpose?
+
+[Creation myth, maker, or natural origin]
+
+## Physical Description & Scale
+
+[Describe appearance, materials, markings, notable features]
+
+## Powers, Abilities & Effects on the Environment
+
+- **Primary Power:** [E.g., earth-shaping, storm-summoning]
+- **Range/Scale:** [Area affected]
+- **Passive Effects:** [Changes to weather, gravity, magic zones]
+
+## Behavior & Motivations
+
+[Is it hostile, benevolent, dormant, wandering? What wakes it?]
+
+## Weaknesses, Limits & How to Affect It
+
+[Known vulnerabilities, rituals, special weapons, or bargains]
+
+## Relationship to People, Factions, & Sites
+
+[How kingdoms, cults, or explorers interact with it; temples, treaties]
+
+## Adventure Hooks
+
+- [Hook 1: Why the party encounters it]
+- [Hook 2: A faction wants it awakened/slain]
+- [Hook 3: Salvage its remains or harness its power]
+
+## Notes & Rumors
+
+[Ongoing myths, contradictory reports, and named sightings]
 `
 }
 

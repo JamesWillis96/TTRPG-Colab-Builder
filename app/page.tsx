@@ -81,7 +81,7 @@ export default function DashboardPage() {
       const now = new Date()
       const upcoming = (allSessions || []).filter(s => new Date(s.date_time) > now).slice(0, 4)
       setUpcomingSessions(upcoming)
-      setSessionStats({ total: allSessions?.length || 0, players: 0 }) // Will update below
+      setSessionStats({ total: allSessions?.length || 0, players: 0 })
 
       // Fetch all GM names for upcoming sessions
       if (upcoming.length > 0) {
@@ -95,12 +95,12 @@ export default function DashboardPage() {
         setGmNames(gmMap)
       }
 
-      // Fetch unique player count
-      const { data: allPlayers } = await supabase
-        .from('session_players')
-        .select('player_id')
-      const uniquePlayers = new Set(allPlayers?.map(p => p.player_id) || [])
-      setSessionStats(prev => ({ ...prev, players: uniquePlayers.size }))
+      // Count profiles directly (do not count guest signups)
+      const { data: profiles, count: profilesCount, error: profilesErr } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact' })
+      if (profilesErr) throw profilesErr
+      setSessionStats(prev => ({ ...prev, players: profilesCount ?? (profiles?.length || 0) }))
 
       // Fetch recent wiki pages
       const { data: wikiData } = await supabase
@@ -166,7 +166,7 @@ export default function DashboardPage() {
       minHeight: 'calc(100vh - 80px)',
       overflow: 'visible',
       backgroundImage: isDark 
-        ? 'url(https://i.pinimg.com/736x/b1/5f/5d/b15f5d26bbe913ff5d5368a92565dd92.jpg)'
+        ? 'url(https://cdna.artstation.com/p/assets/images/images/001/206/348/4k/david-edwards-kenden-001.jpg)'
         : 'url(https://images.pdimagearchive.org/collections/bracelli-s-bizzarie-di-varie-figure-1624/46848687324_d613e135b4_b.jpg?width=1000&height=800)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
@@ -175,7 +175,7 @@ export default function DashboardPage() {
       borderLeft: `8px solid ${theme.colors.primary}`,
       borderRight: `8px solid ${theme.colors.primary}`
     }}>
-      {/* Radial gradient overlay - darker in center, lighter on edges */}
+      {/* Radial gradient overlay */}
       <div style={{
         position: 'absolute',
         inset: 0,
@@ -184,21 +184,24 @@ export default function DashboardPage() {
           : 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.4) 100%)',
         pointerEvents: 'none'
       }} />
+
       <div style={{
-        maxWidth: '900px',
+        maxWidth: '1000px',
         margin: '0 auto',
-        padding: '2rem 2rem',
+        padding: '2.5rem 2rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '2rem',
+        gap: '2.5rem',
         position: 'relative',
         zIndex: 1,
         background: isDark
-          ? 'rgba(30, 41, 59, 0.5)'
-          : 'rgba(255, 255, 255, 0.5)',
-        borderRadius: '8px',
+          ? 'rgba(30, 41, 59, 0.6)'
+          : 'rgba(255, 255, 255, 0.6)',
+        borderRadius: '12px',
         marginTop: '2rem',
-        marginBottom: '2rem'
+        marginBottom: '2rem',
+        backdropFilter: 'blur(10px)',
+        border: `1px solid ${isDark ? 'rgba(71, 85, 105, 0.3)' : 'rgba(255, 255, 255, 0.3)'}`
       }}>
 
         {/* Welcome Section */}
@@ -206,10 +209,156 @@ export default function DashboardPage() {
           <h1 style={{
             ...styles.heading1,
             marginBottom: '0.5rem',
-            color: theme.colors.text.primary
+            color: theme.colors.text.primary,
+            fontSize: '2.2rem',
+            fontWeight: '700'
           }}>
             Welcome back, {profile.username}! 👋
           </h1>
+          <p style={{
+            color: theme.colors.text.secondary,
+            fontSize: '1rem',
+            margin: 0
+          }}>
+            Continue weaving your epic tale
+          </p>
+        </section>
+
+        {/* Campaign Stats with Enhanced Styling */}
+        <section style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '1rem'
+        }}>
+          <a href="/sessions">
+            <div style={{
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.3) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+            border: `2px solid ${theme.colors.primary}`,
+            borderRadius: '12px',
+            padding: '1.5rem',
+            textAlign: 'center',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            boxShadow: isDark 
+              ? '0 8px 16px rgba(0, 0, 0, 0.2)'
+              : '0 4px 12px rgba(0, 0, 0, 0.05)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)'
+            e.currentTarget.style.borderColor = theme.colors.primary
+            e.currentTarget.style.boxShadow = isDark 
+              ? `0 12px 24px rgba(${theme.colors.primary.replace(/[^\d,]/g, '')}, 0.3)`
+              : `0 8px 16px rgba(${theme.colors.primary.replace(/[^\d,]/g, '')}, 0.15)`
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}>
+            <div style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: theme.colors.primary,
+              marginBottom: '0.5rem'
+            }}>
+              {sessionStats.total}
+            </div>
+            <div style={{
+              fontSize: '0.9rem',
+              color: theme.colors.text.secondary,
+              textTransform: 'uppercase',
+              letterSpacing: '0.75px',
+              fontWeight: '600'
+            }}>
+              Sessions
+            </div>
+          </div>
+          </a>
+          
+          <a href="/wiki">
+          <div style={{
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.3) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+            border: `2px solid ${theme.colors.primary}`,
+            borderRadius: '12px',
+            padding: '1.5rem',
+            textAlign: 'center',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            boxShadow: isDark 
+              ? '0 8px 16px rgba(0, 0, 0, 0.2)'
+              : '0 4px 12px rgba(0, 0, 0, 0.05)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)'
+            e.currentTarget.style.borderColor = theme.colors.primary
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}>
+            <div style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: theme.colors.primary,
+              marginBottom: '0.5rem'
+            }}>
+              {wikiPageCount}
+            </div>
+            <div style={{
+              fontSize: '0.9rem',
+              color: theme.colors.text.secondary,
+              textTransform: 'uppercase',
+              letterSpacing: '0.75px',
+              fontWeight: '600'
+            }}>
+              Wiki Pages
+            </div>
+          </div>
+          </a>
+
+          <div style={{
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.4) 0%, rgba(51, 65, 85, 0.3) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+            border: `2px solid ${theme.colors.primary}`,
+            borderRadius: '12px',
+            padding: '1.5rem',
+            textAlign: 'center',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            boxShadow: isDark 
+              ? '0 8px 16px rgba(0, 0, 0, 0.2)'
+              : '0 4px 12px rgba(0, 0, 0, 0.05)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-4px)'
+            e.currentTarget.style.borderColor = theme.colors.primary
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)'
+          }}>
+            <div style={{
+              fontSize: '2rem',
+              fontWeight: 'bold',
+              color: theme.colors.primary,
+              marginBottom: '0.5rem'
+            }}>
+              {sessionStats.players}
+            </div>
+            <div style={{
+              fontSize: '0.9rem',
+              color: theme.colors.text.secondary,
+              textTransform: 'uppercase',
+              letterSpacing: '0.75px',
+              fontWeight: '600'
+            }}>
+              Active Players
+            </div>
+          </div>
         </section>
 
         {/* Creative Tools */}
@@ -219,111 +368,47 @@ export default function DashboardPage() {
           gap: '1rem'
         }}>
           <div style={{
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.border.primary}`,
-            borderRadius: theme.borderRadius,
-            padding: '1rem',
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+            border: `1.5px solid ${theme.colors.border.primary}`,
+            borderRadius: '12px',
+            padding: '1.25rem',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.3s ease'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, color: theme.colors.text.primary }}>Mad Libs</h2>
-              <span style={{ color: theme.colors.text.secondary }}>idea generator</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0, color: theme.colors.text.primary, fontSize: '1.1rem', fontWeight: '600' }}>Mad Libs</h3>
+              <span style={{ color: theme.colors.text.secondary, fontSize: '0.8rem', fontWeight: '500' }}>idea generator</span>
             </div>
-            <p style={{ color: theme.colors.text.secondary }}>
+            <p style={{ color: theme.colors.text.secondary, margin: '0 0 1rem 0', fontSize: '0.9rem', lineHeight: '1.5' }}>
               Quickly spin up NPCs, encounters, items, and hooks with guided blanks.
             </p>
             <button
               onClick={() => router.push('/madlibs')}
               style={{
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                padding: '10px 18px',
                 background: theme.colors.primary,
                 color: '#fff',
                 border: 'none',
-                borderRadius: theme.borderRadius,
-                cursor: 'pointer'
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s ease',
+                width: '100%'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.9'
+                e.currentTarget.style.transform = 'scale(1.02)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+                e.currentTarget.style.transform = 'scale(1)'
               }}
             >
               Open Mad Libs
             </button>
-          </div>
-        </section>
-
-        {/* Campaign Stats */}
-        <section style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem'
-        }}>
-          <div style={{
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.border.primary}`,
-            borderRadius: theme.borderRadius,
-            padding: '1.25rem',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              color: theme.colors.primary,
-              marginBottom: '0.25rem'
-            }}>
-              {sessionStats.total}
-            </div>
-            <div style={{
-              fontSize: '0.85rem',
-              color: theme.colors.text.secondary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Sessions
-            </div>
-          </div>
-          <div style={{
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.border.primary}`,
-            borderRadius: theme.borderRadius,
-            padding: '1.25rem',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              color: theme.colors.primary,
-              marginBottom: '0.25rem'
-            }}>
-              {wikiPageCount}
-            </div>
-            <div style={{
-              fontSize: '0.85rem',
-              color: theme.colors.text.secondary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Wiki Pages
-            </div>
-          </div>
-          <div style={{
-            background: theme.colors.background.secondary,
-            border: `1px solid ${theme.colors.border.primary}`,
-            borderRadius: theme.borderRadius,
-            padding: '1.25rem',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              color: theme.colors.primary,
-              marginBottom: '0.25rem'
-            }}>
-              {sessionStats.players}
-            </div>
-            <div style={{
-              fontSize: '0.85rem',
-              color: theme.colors.text.secondary,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Active Players
-            </div>
           </div>
         </section>
 
@@ -340,19 +425,48 @@ export default function DashboardPage() {
               flex: '1',
               minWidth: '180px',
               padding: '12px 20px',
-              fontSize: '0.95rem'
+              fontSize: '0.95rem',
+              borderRadius: '8px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              boxShadow: `0 4px 12px rgba(${theme.colors.primary.replace(/[^\d,]/g, '')}, 0.3)`
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = `0 6px 16px rgba(${theme.colors.primary.replace(/[^\d,]/g, '')}, 0.4)`
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
             }}
           >
             + Create Session
           </button>
           <button
-            onClick={() => router.push('/wiki/create')}
+            onClick={() => router.push('/wiki?new-entry')}
             style={{
               ...styles.button.secondary,
               flex: '1',
               minWidth: '180px',
               padding: '12px 20px',
-              fontSize: '0.95rem'
+              fontSize: '0.95rem',
+              borderRadius: '8px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              border: `2px solid ${theme.colors.primary}`,
+              background: 'transparent',
+              color: theme.colors.primary
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.background = isDark 
+                ? 'rgba(71, 85, 105, 0.2)'
+                : 'rgba(255, 255, 255, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.background = 'transparent'
             }}
           >
             + Create Wiki Page
@@ -364,7 +478,24 @@ export default function DashboardPage() {
               flex: '1',
               minWidth: '180px',
               padding: '12px 20px',
-              fontSize: '0.95rem'
+              fontSize: '0.95rem',
+              borderRadius: '8px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              border: `2px solid ${theme.colors.primary}`,
+              background: 'transparent',
+              color: theme.colors.primary
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.background = isDark 
+                ? 'rgba(71, 85, 105, 0.2)'
+                : 'rgba(255, 255, 255, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.background = 'transparent'
             }}
           >
             🗺️ Explore Map
@@ -373,23 +504,29 @@ export default function DashboardPage() {
 
         {/* Upcoming Sessions */}
         <section>
-          <h2 style={{ ...styles.heading2, marginBottom: '1rem' }}>📅 Upcoming Sessions</h2>
+          <h2 style={{ ...styles.heading2, marginBottom: '1.25rem', fontSize: '1.4rem' }}>📅 Upcoming Sessions</h2>
           {upcomingSessions.length === 0 ? (
             <div style={{
-              background: theme.colors.background.secondary,
-              border: `1px solid ${theme.colors.border.primary}`,
-              borderRadius: theme.borderRadius,
-              padding: '1.5rem',
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+              border: `1.5px solid ${theme.colors.border.primary}`,
+              borderRadius: '12px',
+              padding: '2rem',
               textAlign: 'center',
-              color: theme.colors.text.secondary
+              color: theme.colors.text.secondary,
+              backdropFilter: 'blur(8px)'
             }}>
-              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.95rem' }}>No sessions scheduled yet.</p>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.95rem' }}>No sessions scheduled yet.</p>
               <button
                 onClick={() => router.push('/sessions/create')}
                 style={{
                   ...styles.button.primary,
                   fontSize: '0.85rem',
-                  padding: '8px 16px'
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
                 }}
               >
                 Create Your First Session
@@ -399,7 +536,7 @@ export default function DashboardPage() {
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.75rem'
+              gap: '0.875rem'
             }}>
               {upcomingSessions.map(session => {
                 const dateTime = new Date(session.date_time)
@@ -415,22 +552,31 @@ export default function DashboardPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '1rem',
-                      background: theme.colors.background.secondary,
-                      border: `1px solid ${theme.colors.border.primary}`,
-                      borderRadius: theme.borderRadius,
+                      padding: '1.25rem',
+                      background: isDark 
+                        ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+                      border: `1.5px solid ${theme.colors.border.primary}`,
+                      borderRadius: '12px',
                       cursor: 'pointer',
                       textAlign: 'left',
-                      transition: 'border-color 0.2s, background 0.2s',
-                      color: 'inherit'
+                      transition: 'all 0.3s ease',
+                      color: 'inherit',
+                      backdropFilter: 'blur(8px)'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = theme.colors.primary
-                      e.currentTarget.style.background = theme.colors.background.main
+                      e.currentTarget.style.background = isDark 
+                        ? 'rgba(71, 85, 105, 0.4)'
+                        : 'rgba(255, 255, 255, 0.6)'
+                      e.currentTarget.style.transform = 'translateX(4px)'
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = theme.colors.border.primary
-                      e.currentTarget.style.background = theme.colors.background.secondary
+                      e.currentTarget.style.background = isDark 
+                        ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)'
+                      e.currentTarget.style.transform = 'translateX(0)'
                     }}
                     role="button"
                     tabIndex={0}
@@ -443,22 +589,22 @@ export default function DashboardPage() {
                   >
                     <div>
                       <div style={{
-                        fontSize: '0.95rem',
-                        fontWeight: '600',
+                        fontSize: '1rem',
+                        fontWeight: '700',
                         color: theme.colors.text.primary,
-                        marginBottom: '0.25rem'
+                        marginBottom: '0.5rem'
                       }}>
                         {session.title}
                       </div>
                       <div style={{
-                        fontSize: '0.8rem',
+                        fontSize: '0.85rem',
                         color: theme.colors.text.secondary,
                         display: 'flex',
-                        gap: '1rem',
+                        gap: '1.5rem',
                         flexWrap: 'wrap'
                       }}>
                         <span>📅 {dateStr} at {timeStr}</span>
-                        <span>GM: {gmName}</span>
+                        <span>👤 GM: {gmName}</span>
                       </div>
                     </div>
                     <button
@@ -468,11 +614,21 @@ export default function DashboardPage() {
                       }}
                       style={{
                         ...styles.button.primary,
-                        padding: '6px 14px',
+                        padding: '8px 16px',
                         fontSize: '0.8rem',
                         whiteSpace: 'nowrap',
                         flexShrink: 0,
-                        marginLeft: '1rem'
+                        marginLeft: '1rem',
+                        borderRadius: '6px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '0.9'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '1'
                       }}
                     >
                       View Details
@@ -484,7 +640,18 @@ export default function DashboardPage() {
                 onClick={() => router.push('/sessions')}
                 style={{
                   ...styles.button.secondary,
-                  marginTop: '0.5rem'
+                  marginTop: '0.75rem',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  padding: '12px 20px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1'
                 }}
               >
                 View All Sessions
@@ -495,23 +662,29 @@ export default function DashboardPage() {
 
         {/* Recent Wiki Updates */}
         <section>
-          <h2 style={{ ...styles.heading2, marginBottom: '1rem' }}>📚 Recent Wiki Updates</h2>
+          <h2 style={{ ...styles.heading2, marginBottom: '1.25rem', fontSize: '1.4rem' }}>📚 Recent Wiki Updates</h2>
           {recentWikiPages.length === 0 ? (
             <div style={{
-              background: theme.colors.background.secondary,
-              border: `1px solid ${theme.colors.border.primary}`,
-              borderRadius: theme.borderRadius,
-              padding: '1.5rem',
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+              border: `1.5px solid ${theme.colors.border.primary}`,
+              borderRadius: '12px',
+              padding: '2rem',
               textAlign: 'center',
-              color: theme.colors.text.secondary
+              color: theme.colors.text.secondary,
+              backdropFilter: 'blur(8px)'
             }}>
-              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.95rem' }}>Build your campaign world.</p>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.95rem' }}>Build your campaign world.</p>
               <button
                 onClick={() => router.push('/wiki/create')}
                 style={{
                   ...styles.button.primary,
                   fontSize: '0.85rem',
-                  padding: '8px 16px'
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
                 }}
               >
                 Create Your First Page
@@ -521,7 +694,7 @@ export default function DashboardPage() {
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.75rem'
+              gap: '0.875rem'
             }}>
               {recentWikiPages.map(page => (
                 <a
@@ -530,39 +703,50 @@ export default function DashboardPage() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '1rem',
-                    background: theme.colors.background.secondary,
-                    border: `1px solid ${theme.colors.border.primary}`,
-                    borderRadius: theme.borderRadius,
+                    gap: '1rem',
+                    padding: '1.25rem',
+                    background: isDark 
+                      ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+                    border: `1.5px solid ${theme.colors.border.primary}`,
+                    borderRadius: '12px',
                     textDecoration: 'none',
                     color: 'inherit',
-                    transition: 'border-color 0.2s, background 0.2s'
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(8px)',
+                    cursor: 'pointer'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = theme.colors.primary
-                    e.currentTarget.style.background = theme.colors.background.main
+                    e.currentTarget.style.background = isDark 
+                      ? 'rgba(71, 85, 105, 0.4)'
+                      : 'rgba(255, 255, 255, 0.6)'
+                    e.currentTarget.style.transform = 'translateX(4px)'
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = theme.colors.border.primary
-                    e.currentTarget.style.background = theme.colors.background.secondary
+                    e.currentTarget.style.background = isDark 
+                      ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)'
+                    e.currentTarget.style.transform = 'translateX(0)'
                   }}
                 >
-                  <span style={{ fontSize: '1.5rem' }}>
+                  <span style={{ fontSize: '1.75rem', flexShrink: 0 }}>
                     {getCategoryIcon(page.category)}
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
+                      fontSize: '0.95rem',
+                      fontWeight: '700',
                       color: theme.colors.text.primary,
-                      marginBottom: '0.2rem'
+                      marginBottom: '0.25rem'
                     }}>
                       {page.title}
                     </div>
                     <div style={{
-                      fontSize: '0.75rem',
-                      color: theme.colors.text.secondary
+                      fontSize: '0.8rem',
+                      color: theme.colors.text.secondary,
+                      fontWeight: '500'
                     }}>
                       {page.category.toUpperCase()} • Updated {new Date(page.updated_at).toLocaleDateString()}
                     </div>
@@ -573,7 +757,18 @@ export default function DashboardPage() {
                 onClick={() => router.push('/wiki')}
                 style={{
                   ...styles.button.secondary,
-                  marginTop: '0.5rem'
+                  marginTop: '0.75rem',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  padding: '12px 20px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1'
                 }}
               >
                 View All Wiki Pages
@@ -584,72 +779,74 @@ export default function DashboardPage() {
 
         {/* World Map Preview */}
         <section>
-          <h2 style={{ ...styles.heading2, marginBottom: '1rem' }}>🗺️ World Map</h2>
-          <a
-            href="/map"
-            style={{
-              display: 'block',
-              textDecoration: 'none',
-              color: 'inherit'
-            }}
-          >
-            <div
-              style={{
-                background: 'transparent',
-                borderRadius: theme.borderRadius,
-                padding: '0.75rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'border-color 0.2s, transform 0.2s',
-                position: 'relative',
-                minHeight: '300px',
-                overflow: 'visible',
-                border: `1px solid ${theme.colors.border.secondary}`,
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = theme.colors.primary
-                e.currentTarget.style.transform = 'translateY(-2px)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = theme.colors.border.secondary
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
-            >
-              <img
-                src="/world-map.png"
-                alt="World Map"
+          <h2 style={{ ...styles.heading2, marginBottom: '1.25rem', fontSize: '1.4rem' }}>🗺️ World Map Preview</h2>
+          {mapPois.length === 0 ? (
+            <div style={{
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+              border: `1.5px solid ${theme.colors.border.primary}`,
+              borderRadius: '12px',
+              padding: '2rem',
+              textAlign: 'center',
+              color: theme.colors.text.secondary,
+              backdropFilter: 'blur(8px)'
+            }}>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.95rem' }}>No locations added to your map yet.</p>
+              <button
+                onClick={() => router.push('/map')}
                 style={{
-                  maxWidth: '105%',
-                  height: 'auto',
-                  borderRadius: theme.borderRadius,
-                  border: `1px solid ${theme.colors.border.secondary}`
+                  ...styles.button.primary,
+                  fontSize: '0.85rem',
+                  padding: '10px 18px',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
                 }}
-              />
-              {mapPois.map(poi => (
-                <div
-                  key={poi.id}
-                  style={{
-                    position: 'absolute',
-                    left: `${poi.x * 100}%`,
-                    top: `${poi.y * 100}%`,
-                    transform: 'translate(-50%, -100%)',
-                    fontSize: '1rem',
-                    color: theme.colors.danger,
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))',
-                    pointerEvents: 'none',
-                    zIndex: 1
-                  }}
-                >
-                  📍
-                </div>
-              ))}
+              >
+                Add Your First Location
+              </button>
             </div>
-          </a>
+          ) : (
+            <div style={{
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(71, 85, 105, 0.3) 0%, rgba(51, 65, 85, 0.25) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 245, 250, 0.4) 100%)',
+              border: `1.5px solid ${theme.colors.border.primary}`,
+              borderRadius: '12px',
+              padding: '1.5rem',
+              backdropFilter: 'blur(8px)'
+            }}>
+              <p style={{
+                color: theme.colors.text.secondary,
+                margin: '0 0 1rem 0',
+                fontSize: '0.9rem'
+              }}>
+                {mapPois.length} location{mapPois.length !== 1 ? 's' : ''} on your map
+              </p>
+              <button
+                onClick={() => router.push('/map')}
+                style={{
+                  ...styles.button.primary,
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  padding: '12px 20px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1'
+                }}
+              >
+                Open Map Editor
+              </button>
+            </div>
+          )}
         </section>
-
       </div>
     </main>
-  )
+  );
 }
