@@ -13,6 +13,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { calculateReadingTime } from '../../lib/wiki'
 import { supabase } from '../../lib/supabase'
 
+
 type AuthorProfile = {
   id: string
   username: string
@@ -69,6 +70,7 @@ export function WikiContentPane() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [mapPoi, setMapPoi] = useState<MapPoi | null>(null)
   const [isMobile, setIsMobile] = useState(false)
+  const router = useRouter();
 
   useEffect(() => {
     const handleResize = () => {
