@@ -16,6 +16,7 @@ export interface WikiEntry {
   content: string
   state: WikiEntryState
   author_id: string
+  is_public: boolean // <-- new field
   markdown_theme?: MarkdownTheme
   featured_image?: string
   created_at: string
@@ -57,6 +58,11 @@ export interface WikiContextType {
   // Filters
   searchQuery: string
   selectedCategory: string
+
+  // Public status helpers
+  isPublic: boolean
+  isAuthorOrAdmin: boolean
+  togglePublicStatus: (makePublic: boolean) => Promise<void>
 
   // UI State
   isMobile: boolean
@@ -102,12 +108,13 @@ export function useWiki() {
 const STORAGE_KEY_PREFIX = 'wiki_recent_'
 
 export function WikiProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { theme } = useTheme()
 
   // Core data
   const [entries, setEntries] = useState<WikiEntry[]>([])
   const [selectedEntry, setSelectedEntry] = useState<WikiEntry | null>(null)
+  const [isPublic, setIsPublic] = useState(false)
   const [revisions, setRevisions] = useState<WikiRevision[]>([])
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -216,9 +223,38 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+
+  // Determine if current user is author or admin (reactively)
+  const isAuthorOrAdmin = React.useMemo(() => {
+    if (!user || !selectedEntry) return false;
+    return selectedEntry.author_id === user.id || profile?.role === 'admin';
+  }, [user, selectedEntry, profile]);
+
+  // Toggle public status
+  async function togglePublicStatus(makePublic: boolean) {
+    if (!selectedEntry) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('wiki_pages')
+        .update({ is_public: makePublic })
+        .eq('id', selectedEntry.id);
+      if (error) throw error;
+      setIsPublic(makePublic);
+      setSelectedEntry({ ...selectedEntry, is_public: makePublic });
+      // Optionally reload entries for sidebar update
+      await reloadEntries();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update public status');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Select an entry and update tracking
   function selectEntry(entry: WikiEntry, options?: { suppressUrl?: boolean }) {
     setSelectedEntry(entry)
+    setIsPublic(entry.is_public)
 
     // Close sidebar on mobile after selection
     if (isMobile) {
@@ -438,7 +474,10 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
     setSelectedMarkdownTheme,
     saveEntry,
     deleteEntry,
-    reloadEntries
+    reloadEntries,
+    isPublic,
+    isAuthorOrAdmin,
+    togglePublicStatus,
   }
 
   return (

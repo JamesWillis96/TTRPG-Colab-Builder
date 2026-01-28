@@ -47,11 +47,12 @@ function ImageComponent({ src, alt }: { src?: string; alt?: string }) {
     />
   )
 }
-
 export function WikiContentPane() {
   const { theme, isDark } = useTheme()
   const { user, profile } = useAuth()
-  const { selectedEntry, openEditModal, deleteEntry, openRevisionsModal } = useWiki()
+  const { selectedEntry, openEditModal, deleteEntry, openRevisionsModal, isPublic, isAuthorOrAdmin, togglePublicStatus } = useWiki()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [pendingPublic, setPendingPublic] = useState(false)
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -132,6 +133,24 @@ export function WikiContentPane() {
 
   const readingTime = calculateReadingTime(selectedEntry.content)
 
+  // Handle switch click
+  const handleSwitchClick = (makePublic: boolean) => {
+    setPendingPublic(makePublic)
+    setShowConfirm(true)
+  }
+
+  // Confirm dialog action
+  const handleConfirm = async () => {
+    setShowConfirm(false)
+    await togglePublicStatus(pendingPublic)
+    if (window && window['showToast']) {
+      window['showToast'](pendingPublic ? 'Page is now public.' : 'Page is now private.')
+    }
+  }
+
+  // Cancel dialog
+  const handleCancel = () => setShowConfirm(false)
+
   return (
     <div
       style={{
@@ -141,7 +160,7 @@ export function WikiContentPane() {
         overflow: 'hidden',
       }}
     >
-      {/* Entry header with metadata */}
+      {/* Entry header with metadata and public toggle */}
       <div
         style={{
         padding: theme.spacing.lg,
@@ -234,8 +253,8 @@ export function WikiContentPane() {
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: theme.spacing.md }}>
+          {/* Action buttons and public toggle */}
+          <div style={{ display: 'flex', gap: theme.spacing.md, alignItems: 'center' }}>
             <button
               onClick={() => openRevisionsModal()}
               style={{
@@ -293,7 +312,139 @@ export function WikiContentPane() {
                 </button>
               </>
             )}
+            {/* Public toggle switch for author/admin only */}
+            {isAuthorOrAdmin && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 0 }}>
+                {/* Accessible switch using label/input/span, styled inline */}
+                <label
+                  style={{
+                    fontSize: 17,
+                    position: 'relative',
+                    display: 'inline-block',
+                    width: '3.5em',
+                    height: '2em',
+                    cursor: 'pointer',
+                    marginBottom: 0,
+                    opacity: 1,
+                  }}
+                  aria-label={isPublic ? 'Make private' : 'Make public'}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    disabled={showConfirm}
+                    onChange={() => handleSwitchClick(!isPublic)}
+                    style={{
+                      opacity: 0,
+                      width: 0,
+                      height: 0,
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      margin: 0,
+                      zIndex: 2,
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      border: `2px solid ${isPublic ? '#0974f1' : '#414141'}`,
+                      borderRadius: 50,
+                      transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                      boxShadow: isPublic ? '0 0 20px rgba(9, 117, 241, 0.8)' : undefined,
+                      background: 'transparent',
+                      display: 'block',
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        content: '""',
+                        height: '1.4em',
+                        width: '1.4em',
+                        left: isPublic ? '1.7em' : '0.2em',
+                        bottom: '0.2em',
+                        backgroundColor: '#fff',
+                        borderRadius: 50,
+                        transition: 'all 0.4s cubic-bezier(0.23, 1, 0.320, 1)',
+                        boxShadow: isPublic ? '0 0 8px #0974f1' : undefined,
+                        border: isPublic ? '2px solid #0974f1' : '2px solid #414141',
+                        zIndex: 1,
+                        display: 'block',
+                      }}
+                    />
+                  </span>
+                </label>
+                <div style={{ fontSize: 13, color: theme.colors.text.secondary, marginTop: 4, textAlign: 'center', width: '100%' }}>
+                  {isPublic ? 'Publicly editable' : 'Private'}
+                </div>
+              </div>
+            )}
           </div>
+              {/* Confirmation dialog for public toggle */}
+              {showConfirm && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    background: 'rgba(0,0,0,0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: theme.colors.background.main,
+                      color: theme.colors.text.primary,
+                      padding: 32,
+                      borderRadius: theme.borderRadius,
+                      boxShadow: theme.shadow,
+                      minWidth: 320,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 16, marginBottom: 16 }}>
+                      Are you sure you want to make this page {pendingPublic ? 'public' : 'private'}?
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
+                      <button
+                        onClick={handleConfirm}
+                        style={{
+                          padding: '8px 20px',
+                          background: theme.colors.primary,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: theme.borderRadius,
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        style={{
+                          padding: '8px 20px',
+                          background: theme.colors.background.secondary,
+                          color: theme.colors.text.primary,
+                          border: `1px solid ${theme.colors.border.primary}`,
+                          borderRadius: theme.borderRadius,
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
         </div>
       </div>
 

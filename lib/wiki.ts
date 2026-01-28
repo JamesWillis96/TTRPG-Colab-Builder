@@ -1,3 +1,24 @@
+import { supabase } from './supabase'
+
+// Fetch is_public status for a wiki page by id
+export async function getWikiPagePublicStatus(id: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('wiki_pages')
+    .select('is_public')
+    .eq('id', id)
+    .single()
+  if (error) throw error
+  return !!data?.is_public
+}
+
+// Update is_public status for a wiki page by id
+export async function setWikiPagePublicStatus(id: string, isPublic: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('wiki_pages')
+    .update({ is_public: isPublic })
+    .eq('id', id)
+  if (error) throw error
+}
 /**
  * Wiki utilities and helpers
  */
