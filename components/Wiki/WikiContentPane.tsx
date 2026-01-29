@@ -348,45 +348,46 @@ export function WikiContentPane() {
             >
               History
             </button>
-            {/* Show Edit/Delete only if user is the author or an admin */}
+            {/* Edit button: show for any logged-in user if public, or for author/admin if private */}
+            {((isPublic && user) || user?.id === selectedEntry.author_id || profile?.role === 'admin') && (
+              <button
+                onClick={() => openEditModal(selectedEntry)}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: theme.colors.primary,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: theme.borderRadius,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                Edit
+              </button>
+            )}
+            {/* Delete only for author or admin, never for public */}
             {(user?.id === selectedEntry.author_id || profile?.role === 'admin') && (
-              <>
-                <button
-                  onClick={() => openEditModal(selectedEntry)}
-                  style={{
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    backgroundColor: theme.colors.primary,
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: theme.borderRadius,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    transition: 'opacity 0.2s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  style={{
-                    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                    backgroundColor: '#dc3545',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: theme.borderRadius,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    transition: 'opacity 0.2s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-                >
-                  Delete
-                </button>
-              </>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{
+                  padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: theme.borderRadius,
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                Delete
+              </button>
             )}
             {/* Public toggle switch for author/admin only */}
             {isAuthorOrAdmin && (
