@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { useTheme } from '../../../../contexts/ThemeContext'
 import { supabase } from '../../../../lib/supabase'
+import { isFutureDateInMST } from '../../../../lib/sessionDate'
 import { useParams, useRouter } from 'next/navigation'
 
 export default function EditSessionPage() {
@@ -68,6 +69,13 @@ export default function EditSessionPage() {
     // Validation
     if (gameSystem === 'Other' && !customGameSystem.trim()) {
       setError('Please enter a custom game system')
+      setSaving(false)
+      return
+    }
+
+    // Date-only MST validation
+    if (!isFutureDateInMST(date)) {
+      setError('Session date must be in the future (MST)')
       setSaving(false)
       return
     }

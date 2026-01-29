@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { supabase } from '../../lib/supabase'
+import { isFutureDateInMST } from '../../lib/sessionDate'
 
 type SessionRow = {
   id: string
@@ -270,6 +271,13 @@ export default function SessionsPage() {
     game_system?: string
   }) => {
     if (!user) return
+
+    // Date-only MST validation
+    if (!isFutureDateInMST(form.date)) {
+      alert('Session date must be in the future (MST)')
+      return
+    }
+
     setCreating(true)
     try {
       const iso = new Date(`${form.date}T${form.time}`).toISOString()
@@ -306,6 +314,13 @@ export default function SessionsPage() {
     game_system?: string
   }) => {
     if (!editingSession) return
+
+    // Date-only MST validation
+    if (!isFutureDateInMST(form.date)) {
+      alert('Session date must be in the future (MST)')
+      return
+    }
+
     setCreating(true)
     try {
       const iso = new Date(`${form.date}T${form.time}`).toISOString()

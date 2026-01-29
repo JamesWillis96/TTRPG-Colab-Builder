@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useTheme } from '../../../contexts/ThemeContext'
 import { supabase } from '../../../lib/supabase'
+import { isFutureDateInMST } from '../../../lib/sessionDate'
 
 export default function CreateSessionPage() {
   const router = useRouter()
@@ -33,6 +34,12 @@ export default function CreateSessionPage() {
     e.preventDefault()
     
     if (!user) return
+
+    // Date-only MST validation: ensure selected date is strictly in the future (MST)
+    if (!isFutureDateInMST(date)) {
+      alert('Session date must be in the future (MST)')
+      return
+    }
 
     setLoading(true)
 
