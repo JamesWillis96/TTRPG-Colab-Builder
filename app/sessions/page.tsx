@@ -40,9 +40,14 @@ export default function SessionsPage() {
   const [isGuest, setIsGuest] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const search = window.location.search;
-      setIsGuest(/([?&])guest([&=]|$)/.test(search));
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const hasGuestParam = params.has('guest')
+    if (hasGuestParam) {
+      // Always generate a fresh guest key when the guest page loads
+      newGuestKey(false)
+    } else {
+      setIsGuest(false)
     }
   }, [])
   
@@ -260,6 +265,28 @@ export default function SessionsPage() {
       console.error('leaveSession error', err)
       alert('Failed to leave session: ' + (err?.message || String(err)))
     }
+  }
+
+  const newGuestKey = (reload = false) => {
+    if (typeof window === 'undefined') return
+    const key = Date.now().toString(36) + Math.floor(Math.random() * 100000).toString(36)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('guest', key)
+      // Persist the guest query key and clear any previous guest_profile_id
+      window.localStorage.removeItem('guest_profile_id')
+      window.localStorage.setItem('guest_query_key', key)
+      if (reload) {
+        // navigate to new URL so the page reloads with a fresh guest key
+        window.location.href = url.toString()
+        return
+      }
+      window.history.replaceState({}, '', url.toString())
+    } catch (e) {
+      // ignore
+    }
+    setGuestProfileId(null)
+    setIsGuest(true)
   }
 
   const createSession = async (form: {
@@ -686,14 +713,21 @@ export default function SessionsPage() {
               onJoin={async (name: string) => {
                 // Create or increment guest profile via RPC and store its id locally, then join with that id
                 try {
-                  const { data: gidData, error: gidErr } = await supabase.rpc('create_or_increment_guest', { _username: name })
-                  if (gidErr) throw gidErr
-                  const gid = Array.isArray(gidData) ? gidData[0] : (gidData as any)
+                  // Create a fresh guest profile for each guest use so IDs are unique
+                  const { data: gpData, error: gpErr } = await supabase
+                    .from('guest_profiles')
+                    .insert({ username: name })
+                    .select('id')
+                    .single()
+                  if (gpErr) throw gpErr
+                  const gid = gpData?.id
                   try {
                     if (typeof window !== 'undefined') window.localStorage.setItem('guest_profile_id', String(gid))
                   } catch (e) {}
                   setGuestProfileId(String(gid))
                   await joinSession(guestTargetSessionId as string, String(gid))
+                    // After successfully joining, rotate guest key and reload so the kiosk is ready for the next guest
+                    newGuestKey(true)
                 } catch (err: any) {
                   console.error('Guest join flow failed', err)
                   alert('Failed to join as guest: ' + (err?.message || String(err)))

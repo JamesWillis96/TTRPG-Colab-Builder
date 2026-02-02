@@ -65,10 +65,15 @@ export default function SessionDetailPage() {
       // 1. Create guest_profiles entry if not exists and add to session_players as guest_profile_id
       let guestProfileId = user?.id
       if (!profile) {
-        const { data: gidData, error: gidErr } = await supabase.rpc('create_or_increment_guest', { _username: guestName })
-        if (gidErr) throw gidErr
-        const gid = Array.isArray(gidData) ? gidData[0] : (gidData as any)
-        guestProfileId = String(gid)
+        // Create a fresh guest_profiles row each time so each guest gets a unique id
+        const { data: gpData, error: gpErr } = await supabase
+          .from('guest_profiles')
+          .insert({ username: guestName })
+          .select('id')
+          .single()
+        if (gpErr) throw gpErr
+        guestProfileId = String(gpData?.id)
+        try { if (typeof window !== 'undefined') window.localStorage.setItem('guest_profile_id', guestProfileId) } catch (e) {}
       }
       // 2. Add to session_players
       const { error: signupErr } = await supabase
