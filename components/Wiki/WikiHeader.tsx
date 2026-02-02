@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/AuthContext'
 export function WikiHeader() {
   const { theme } = useTheme()
   const { entries, isMobile, sidebarOpen, setSidebarOpen, openEditModal, selectedEntry, isPublic, isAuthorOrAdmin, togglePublicStatus } = useWiki()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [showConfirm, setShowConfirm] = useState(false)
   const [pendingPublic, setPendingPublic] = useState(false)
 
@@ -107,7 +107,27 @@ export function WikiHeader() {
       </div>
 
       {/* Right: Create button and public toggle */}
-      {/* No edit or public toggle here anymore */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+        {user && (
+          <button
+            onClick={() => openEditModal()}
+            style={{
+              padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+              backgroundColor: theme.colors.primary,
+              color: '#fff',
+              border: 'none',
+              borderRadius: theme.borderRadius,
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+          >
+            + Add Entry
+          </button>
+        )}
+      </div>
 
       {/* Confirmation dialog */}
       {showConfirm && (
