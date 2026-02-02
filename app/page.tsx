@@ -79,9 +79,10 @@ export default function DashboardPage() {
         .order('date_time', { ascending: true })
       
       const now = new Date()
-      const upcoming = (allSessions || []).filter(s => new Date(s.date_time) > now).slice(0, 4)
+      const upcomingAll = (allSessions || []).filter(s => new Date(s.date_time) > now)
+      const upcoming = upcomingAll.slice(0, 4)
       setUpcomingSessions(upcoming)
-      setSessionStats({ total: allSessions?.length || 0, players: 0 })
+      setSessionStats({ total: upcomingAll.length || 0, players: 0 })
 
       // Fetch all GM names for upcoming sessions
       if (upcoming.length > 0) {
@@ -271,7 +272,7 @@ export default function DashboardPage() {
               letterSpacing: '0.75px',
               fontWeight: '600'
             }}>
-              Sessions
+              Upcoming Sessions
             </div>
           </div>
           </a>
