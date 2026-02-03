@@ -349,6 +349,56 @@ export const wikiTemplates: Record<string, string> = {
 - [Hook 3]
 `
   ,
+  // Template for wargaming content: rules, units, scenarios, maps
+  wargaming: `# [Wargame Name]
+**Scale:** [e.g., skirmish/battalion/grand-tactical]  
+**Ruleset:** [Rules used or house rules]  
+**Era/Setting:** [Historical/Fantasy/Sci-fi/Other]  
+**Typical Player Count:** [1v1, team sizes, etc.]
+----
+## Overview
+
+[Brief description of the wargame, its focus, and core mechanics.]
+
+## Units & Forces
+
+- **Unit Type:** [Description, stats, point cost]
+- **Unit Type:** [Description, stats, point cost]
+
+## Scenario / Scenario Design
+
+**Name:** [Scenario name]
+
+**Setup:** [Deployment, objectives, special rules]
+
+**Victory Conditions:** [How a player/team wins]
+
+## Map & Terrain Notes
+
+[Recommended map size, terrain features, and effects on gameplay.]
+
+## Rules Variants & House Rules
+
+- [Variant 1 and when to use it]
+- [Variant 2 and adjustments]
+
+## Typical Strategies & Tactics
+
+[Notes on common strategies for each side or unit type.]
+
+## Historical/Setting Notes (if applicable)
+
+[Contextual background tying scenario to setting or history.]
+
+## References & Resources
+
+- [Link to rules, reference documents, or scenario files]
+- [Builder tools, map files, or community resources]
+
+## Additional Notes
+
+[Design tips, balancing notes, and variants for scaling play.]
+`,
   // Template for Collosi (large ancient constructs/creatures)
   collosi: `# [Colossi Name]
 **Type:** [Titan/Construct/Natural/God-forged/etc.]  
