@@ -383,23 +383,134 @@ export function WikiProvider({ children }: { children: React.ReactNode }) {
         setSelectedEntry(updatedEntry)
       } else {
         // Creating new entry
-        const { data: created, error: err } = await supabase
-          .from('wiki_pages')
-          .insert({
-            title: data.title,
-            slug: data.slug,
-            category: data.category,
-            content: data.content,
-            author_id: user.id,
-            markdown_theme: data.markdown_theme || 'github',
-            featured_image: data.featured_image || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+        // First try: call a DB-side RPC that atomically renames soft-deleted rows
+        // and inserts the new page. If the RPC doesn't exist or errors, fall back
+        // to the client-side rename+insert flow below.
+        let created: any = null
+        try {
+          const { data: rpcData, error: rpcErr } = await supabase.rpc('create_wiki_page_with_rename', {
+            p_title: data.title,
+            p_slug: data.slug,
+            p_category: data.category,
+            p_content: data.content,
+            p_author_id: user.id,
+            p_markdown_theme: data.markdown_theme || 'github',
+            p_featured_image: data.featured_image || null,
           })
-          .select()
-          .single()
 
-        if (err) throw err
+          if (!rpcErr && rpcData) {
+            created = Array.isArray(rpcData) ? rpcData[0] : rpcData
+          }
+        } catch (e) {
+          // swallow and fallback to client-side flow
+          console.debug('RPC create_wiki_page_with_rename not available or failed, falling back', e)
+        }
+
+        // Helper to find and rename soft-deleted conflicts so the slug can be reused.
+        const renameDeletedConflicts = async () => {
+          const { data: conflictingRows, error: fetchErr } = await supabase
+            .from('wiki_pages')
+            .select('*')
+            .eq('slug', data.slug)
+
+          if (fetchErr) throw fetchErr
+
+          const deletedConflicts = (conflictingRows || []).filter((p: any) => p.deleted_at)
+          for (const [idx, old] of deletedConflicts.entries()) {
+            try {
+              const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 100000)}`
+              const newSlug = `${old.slug}-deprecated-${uniqueSuffix}${idx > 0 ? `-${idx}` : ''}`
+              const newTitle = old.title && old.title.includes('(deprecated)') ? old.title : `${old.title} (deprecated)`
+              const { error: updErr } = await supabase
+                .from('wiki_pages')
+                .update({ title: newTitle, slug: newSlug })
+                .eq('id', old.id)
+              if (updErr) console.warn('Failed to rename soft-deleted wiki page:', updErr)
+            } catch (e) {
+              console.warn('Error handling soft-deleted conflict for wiki page', e)
+            }
+          }
+        }
+
+        // If RPC didn't create a row, perform the client-side rename+insert flow
+        if (!created) {
+          // First attempt: try to proactively rename any soft-deleted rows
+          await renameDeletedConflicts()
+
+          try {
+            const res = await supabase
+              .from('wiki_pages')
+              .insert({
+                title: data.title,
+                slug: data.slug,
+                category: data.category,
+                content: data.content,
+                author_id: user.id,
+                markdown_theme: data.markdown_theme || 'github',
+                featured_image: data.featured_image || null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .select()
+              .single()
+
+            if (res.error) throw res.error
+            created = res.data
+          } catch (insertErr: any) {
+            const msg = insertErr?.message || ''
+            const isUniqueViolation = msg.includes('duplicate key') || msg.includes('unique') || insertErr?.code === '23505'
+            if (isUniqueViolation) {
+              // Retry flow: rename any remaining soft-deleted conflicts then retry insert once
+              await renameDeletedConflicts()
+              const retry = await supabase
+                .from('wiki_pages')
+                .insert({
+                  title: data.title,
+                  slug: data.slug,
+                  category: data.category,
+                  content: data.content,
+                  author_id: user.id,
+                  markdown_theme: data.markdown_theme || 'github',
+                  featured_image: data.featured_image || null,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .select()
+                .single()
+
+              if (retry.error) {
+                // Final fallback: if slug is still taken (race or RLS prevented renames),
+                // create the new page using a unique slug to avoid DB constraint.
+                console.warn('Slug still in use after attempts; creating with fallback slug', retry.error)
+                const fallbackSlug = `${data.slug}-${Date.now()}`
+                const fallback = await supabase
+                  .from('wiki_pages')
+                  .insert({
+                    title: data.title,
+                    slug: fallbackSlug,
+                    category: data.category,
+                    content: data.content,
+                    author_id: user.id,
+                    markdown_theme: data.markdown_theme || 'github',
+                    featured_image: data.featured_image || null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  })
+                  .select()
+                  .single()
+
+                if (fallback.error) throw fallback.error
+                created = fallback.data
+              } else {
+                created = retry.data
+              }
+            } else {
+              throw insertErr
+            }
+          }
+        }
+
+        if (!created) throw new Error('Failed to create entry')
 
         // Update local state and auto-select
         setEntries(prev =>

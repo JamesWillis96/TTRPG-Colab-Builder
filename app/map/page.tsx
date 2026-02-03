@@ -535,18 +535,113 @@ export default function MapEditorPage() {
       const baseTemplate = wikiTemplates[enforcedCategory] || wikiTemplates.location
       const templateWithTitle = baseTemplate.replace(/^#\s+.*$/m, `# ${poiTitle}`)
       const content = `${templateWithTitle}\n\n---\n\n**Map Note:** This entry is linked to a map point of interest.\n`
-      const { data: wikiPage, error: wikiError } = await supabase
-        .from('wiki_pages')
-        .insert({
-          title: poiTitle,
-          slug,
-          content,
-          category: enforcedCategory,
-          author_id: user.id
+      // Try server-side RPC to atomically rename soft-deleted wiki pages and insert.
+      // Fallback to client-side insert if RPC isn't available.
+      let wikiPage: any = null
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('create_wiki_page_with_rename', {
+          p_title: poiTitle,
+          p_slug: slug,
+          p_category: enforcedCategory,
+          p_content: content,
+          p_author_id: user.id,
+          p_markdown_theme: 'github',
+          p_featured_image: null
         })
-        .select()
-        .single()
-      if (wikiError) throw wikiError
+        if (!rpcErr && rpcData) wikiPage = Array.isArray(rpcData) ? rpcData[0] : rpcData
+      } catch (e) {
+        // ignore and fall back
+        console.debug('RPC create_wiki_page_with_rename not available, falling back to client insert', e)
+      }
+
+      if (!wikiPage) {
+        // Client-side fallback: try renaming soft-deleted conflicts, insert,
+        // retry on unique-constraint, and finally create with fallback slug.
+        const renameDeletedConflicts = async () => {
+          const { data: conflictingRows, error: fetchErr } = await supabase
+            .from('wiki_pages')
+            .select('*')
+            .eq('slug', slug)
+
+          if (fetchErr) throw fetchErr
+
+          const deletedConflicts = (conflictingRows || []).filter((p: any) => p.deleted_at)
+          for (const [idx, old] of deletedConflicts.entries()) {
+            try {
+              const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 100000)}`
+              const newSlug = `${old.slug}-deprecated-${uniqueSuffix}${idx > 0 ? `-${idx}` : ''}`
+              const newTitle = old.title && old.title.includes('(deprecated)') ? old.title : `${old.title} (deprecated)`
+              const { error: updErr } = await supabase
+                .from('wiki_pages')
+                .update({ title: newTitle, slug: newSlug })
+                .eq('id', old.id)
+              if (updErr) console.warn('Failed to rename soft-deleted wiki page:', updErr)
+            } catch (e) {
+              console.warn('Error handling soft-deleted conflict for wiki page', e)
+            }
+          }
+        }
+
+        // First attempt
+        await renameDeletedConflicts()
+
+        try {
+          const res = await supabase
+            .from('wiki_pages')
+            .insert({
+              title: poiTitle,
+              slug,
+              content,
+              category: enforcedCategory,
+              author_id: user.id
+            })
+            .select()
+            .single()
+          if (res.error) throw res.error
+          wikiPage = res.data
+        } catch (insertErr: any) {
+          const msg = insertErr?.message || ''
+          const isUniqueViolation = msg.includes('duplicate key') || msg.includes('unique') || insertErr?.code === '23505'
+          if (isUniqueViolation) {
+            // rename again and retry
+            await renameDeletedConflicts()
+            const retry = await supabase
+              .from('wiki_pages')
+              .insert({
+                title: poiTitle,
+                slug,
+                content,
+                category: enforcedCategory,
+                author_id: user.id
+              })
+              .select()
+              .single()
+
+            if (retry.error) {
+              // Final fallback: create with unique slug
+              console.warn('Slug still in use after attempts; creating with fallback slug', retry.error)
+              const fallbackSlug = `${slug}-${Date.now()}`
+              const fallback = await supabase
+                .from('wiki_pages')
+                .insert({
+                  title: poiTitle,
+                  slug: fallbackSlug,
+                  content,
+                  category: enforcedCategory,
+                  author_id: user.id
+                })
+                .select()
+                .single()
+              if (fallback.error) throw fallback.error
+              wikiPage = fallback.data
+            } else {
+              wikiPage = retry.data
+            }
+          } else {
+            throw insertErr
+          }
+        }
+      }
 
       const { data: newPoi, error: poiError } = await supabase
         .from('map_pois')
