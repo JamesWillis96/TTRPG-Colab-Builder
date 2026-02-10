@@ -4,6 +4,7 @@ export const wikiCategories = [
   'location',
   'lore',
   'item/equipment',
+  'wargaming',
   'artifact',
   'aberration',
   'faction',
