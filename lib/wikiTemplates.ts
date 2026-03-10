@@ -350,41 +350,26 @@ export const wikiTemplates: Record<string, string> = {
 `
   ,
   // Template for wargaming content: rules, units, scenarios, maps
-  wargaming: `# [Wargame Name]
-**Scale:** [e.g., skirmish/battalion/grand-tactical]  
-**Ruleset:** [Rules used or house rules]  
-**Era/Setting:** [Historical/Fantasy/Sci-fi/Other]  
-**Typical Player Count:** [1v1, team sizes, etc.]
+  wargaming: `# [Warband/Army Name]  
+**Ruleset:** [Rules used or house rules] 
+**Size:** [Size of the army or warband in the vernacular of the game (models, points, ducats etc)] 
 ----
 ## Overview
 
-[Brief description of the wargame, its focus, and core mechanics.]
+[Brief description of the warband or Army.]
 
 ## Units & Forces
 
 - **Unit Type:** [Description, stats, point cost]
 - **Unit Type:** [Description, stats, point cost]
 
-## Scenario / Scenario Design
-
-**Name:** [Scenario name]
-
-**Setup:** [Deployment, objectives, special rules]
-
-**Victory Conditions:** [How a player/team wins]
-
 ## Map & Terrain Notes
 
-[Recommended map size, terrain features, and effects on gameplay.]
-
-## Rules Variants & House Rules
-
-- [Variant 1 and when to use it]
-- [Variant 2 and adjustments]
+[Recommendations on deployment and usage of terrain.]
 
 ## Typical Strategies & Tactics
 
-[Notes on common strategies for each side or unit type.]
+[Notes on common strategies for the army in general or individual unit types.]
 
 ## Historical/Setting Notes (if applicable)
 
@@ -397,8 +382,9 @@ export const wikiTemplates: Record<string, string> = {
 
 ## Additional Notes
 
-[Design tips, balancing notes, and variants for scaling play.]
-`,
+[Design tips, balancing notes, and variants for scaling play.]`,
+
+
   // Template for Collosi (large ancient constructs/creatures)
   collosi: `# [Colossi Name]
 **Type:** [Titan/Construct/Natural/God-forged/etc.]  
