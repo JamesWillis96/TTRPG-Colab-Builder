@@ -99,7 +99,11 @@ export default function SessionsPage() {
       if (sessionsErr) throw sessionsErr
       
       const now = new Date()
-      const sArray: SessionRow[] = (sessionList || []).filter(s => new Date(s.date_time) > now)
+      const isSameLocalDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+      const sArray: SessionRow[] = (sessionList || []).filter(s => {
+        const sessionDate = new Date(s.date_time)
+        return sessionDate > now || isSameLocalDay(sessionDate, now)
+      })
       setSessions(sArray)
 
       const ids = sArray.map(s => s.id)

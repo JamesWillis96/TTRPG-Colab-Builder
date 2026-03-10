@@ -19,7 +19,7 @@ export function isFutureDateInMST(dateOnly: string): boolean {
   const providedUTC = Date.UTC(year, month - 1, day)
   const mstUTC = Date.UTC(mstNow.getUTCFullYear(), mstNow.getUTCMonth(), mstNow.getUTCDate())
 
-  return providedUTC > mstUTC
+  return providedUTC >= mstUTC
 }
 
 export default isFutureDateInMST

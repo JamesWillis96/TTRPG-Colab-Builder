@@ -79,6 +79,11 @@ export default function Navbar() {
               Profile
             </Link>
             {profile?.role === 'admin' && (
+              <Link href="/admin" style={{ padding: `${theme.spacing.sm} ${theme.spacing.sm}`, borderRadius: theme.borderRadius, color: theme.colors.text.primary, cursor: 'pointer', transition: 'all 0.2s ease', backgroundColor: 'transparent' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.colors.background.secondary; e.currentTarget.style.color = theme.colors.primary; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = theme.colors.text.primary; }}>
+                Admin
+              </Link>
+            )}
+            {profile?.role === 'admin' && (
               <Link href="/recycle-bin" style={{ padding: `${theme.spacing.sm} ${theme.spacing.sm}`, borderRadius: theme.borderRadius, color: theme.colors.text.primary, cursor: 'pointer', transition: 'all 0.2s ease', backgroundColor: 'transparent' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = theme.colors.background.secondary; e.currentTarget.style.color = theme.colors.primary; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = theme.colors.text.primary; }}>
                 Recycle Bin
               </Link>
@@ -284,6 +289,31 @@ export default function Navbar() {
                     </button>
                   </Link>
                 </li>
+                {profile?.role === 'admin' && (
+                  <li>
+                    <Link href="/admin">
+                      <button style={{ color: theme.colors.text.primary, fontWeight: 'normal' }}>
+                        <svg
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                          strokeWidth="2"
+                          stroke={theme.colors.text.primary}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          height="17.5"
+                          width="17.5"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path d="M4 19h16"></path>
+                          <path d="M6 16V8"></path>
+                          <path d="M12 16V4"></path>
+                          <path d="M18 16v-6"></path>
+                        </svg>
+                        <span>Admin</span>
+                      </button>
+                    </Link>
+                  </li>
+                )}
                 {profile?.role === 'admin' && (
                   <li>
                     <Link href="/recycle-bin">
